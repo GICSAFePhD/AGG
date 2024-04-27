@@ -1,5 +1,6 @@
 import tkinter as tk
 import re
+import math
 
 class NetElement:
     def __init__(self, canvas, x1, y1, x2, y2, net_elements, net_element_key, color='black'):
@@ -65,14 +66,63 @@ class LevelCrossing:
         canvas.create_line(x-30, y+60, x-45, y+75, fill=color,width=3)
 
 class Signals:
-    def __init__(self, canvas, x, y ,name,color='grey'):
+    def __init__(self, canvas, x, y ,name,way,net_coordinate = None,color='grey'):
         self.id = None
+        font_size = 8
 
-        canvas.create_text(x,y-40,text=name,fill=color)
-        canvas.create_line(x+10, y-30, x+10, y-10, fill=color,width=3)
-        canvas.create_line(x+10, y-10, x-10, y-10, fill=color,width=3)
-        canvas.create_line(x-10, y-10, x-10, y-30, fill=color,width=3)
-        canvas.create_line(x-10, y-30, x+10, y-30, fill=color,width=3)
+        direction = name[-2]
+        side = name[-1]
+
+        if net_coordinate != None:
+            slope = 'up' if (net_coordinate[1][1] - net_coordinate[0][1]) / (net_coordinate[1][0] - net_coordinate[0][0]) > 0 else 'down'
+            print(f'{name} {x} {y} {net_coordinate} {way} {slope}')
+
+        x0 = -1
+        y0 = 1
+        r = 15
+
+        if net_coordinate == None:
+            if direction == 'l' and side == 'n':
+                color = 'red'
+                x0 = -1
+                y0 = 1
+            if direction == 'l' and side == 'r':
+                color = 'green'
+                x0 = -1
+                y0 = 1
+            if direction == 'r' and side == 'n':
+                color = 'blue'
+                x0 = -1
+                y0 = 1
+            if direction == 'r' and side == 'r':
+                color = 'black'
+                x0 = 1
+                y0 = -1
+
+            x0 = x0 if way == '>' else -x0
+            y0 = y0 if way == '>' else -y0
+
+        
+            canvas.create_text(x,y-(y0*55),text=name[:-2],fill=color,font=font_size)
+            canvas.create_line(x, (y-y0*30), (x-x0*25), (y-y0*30), fill=color,width=3)
+            canvas.create_line(x, (y-y0*30)+10, x, (y-y0*30)-10, fill=color,width=3)
+            canvas.create_oval((x-x0*40)-r,(y-y0*30)-r,(x-x0*40)+r,(y-y0*30)+r,outline=color,width=3)
+        else:
+            if slope == 'up' and way == '>':
+                color = 'orange'
+            if slope == 'up' and way == '<':
+                color = 'grey'
+            if slope == 'down' and way == '>':
+                color = 'pink'
+            if slope == 'down' and way == '<':
+                color = 'cyan'
+
+            #canvas.create_text(x,y-(y0*55),text=name,fill='orange',font=font_size)
+            #canvas.create_line(x, (y-y0*30), (x-x0*25), (y-y0*30), fill='orange',width=3)
+            #canvas.create_line(x, (y-y0*30)+10, x, (y-y0*30)-10, fill='orange',width=3)
+            canvas.create_oval((x-x0*40)-r,(y-y0*30)-r,(x-x0*40)+r,(y-y0*30)+r,outline=color,width=3)
+
+
 
 def get_netElements(RML):
     network = {}
@@ -310,30 +360,27 @@ def get_netElements(RML):
         for SignalIS in SignalsIS.SignalIS:
             node = SignalIS.SpotLocation[0].NetElementRef
             signal = SignalIS.Designator[0].Entry.split(' ')[1]
-
+            direction = SignalIS.SignalConstruction[0].PositionAtTrack[0]
+            side = SignalIS.SpotLocation[0].ApplicationDirection[0]
+            
             if 'Signal' not in network[node]:
                 network[node] |= {'Signal':{}}
             if signal not in network[node]['Signal']:
-                network[node]['Signal'] |= {signal:()}
+                network[node]['Signal'] |= {f'{signal}{direction}{side}':()}
                                                                         
     positions = {}
     if visualization.Visualization[0].SpotElementProjection != None:
         for i in visualization.Visualization[0].SpotElementProjection:
             name = i.Name[0].Name
             ref = i.RefersToElement
-            if ref.startswith('bus') or name.startswith('Buf') or ref.startswith('oe') or ref.startswith('line') or ref.startswith('tde') or ref.startswith('lcr') or ref.startswith('plf') or ref.startswith('tvd') or ref.startswith('swi') or re.fullmatch(r'S\d{2,3}', name): 
+            if ref.startswith('bus') or name.startswith('Buf') or ref.startswith('oe') or ref.startswith('line') or ref.startswith('tde') or ref.startswith('lcr') or ref.startswith('plf') or ref.startswith('tvd') or ref.startswith('swi') or name.startswith('S'): 
                 x_pos = int(float(i.Coordinate[0].X)) if float(i.Coordinate[0].X).is_integer() else float(i.Coordinate[0].X)
                 y_pos = -int(float(i.Coordinate[0].Y))  if float(i.Coordinate[0].Y).is_integer() else -float(i.Coordinate[0].Y)
-
-                #print(name,x_pos,y_pos)
-
-                if re.fullmatch(r'X\d{2,3}', ref) or re.fullmatch(r'P\d{2,3}', ref):
-                    positions[name] = (x_pos,-y_pos)
-                else:
-                    positions[name] = (x_pos,y_pos)
+                positions[name] = (x_pos,y_pos)
+                print(f'-{ref} {name} {positions[name]}')
 
     for x in positions:
-        print(f'{x} {positions[x]}')
+        #print(f'{x} {positions[x]}')
         for node in network:
             if 'BufferStop' in network[node] and x in network[node]['BufferStop']:
                 network[node]['BufferStop'] |= {x:positions[x]}
@@ -354,9 +401,53 @@ def get_netElements(RML):
                 network[node]['Switch'] |= {x:positions[x]}
             if 'Crossing' in network[node] and x in network[node]['Crossing']:
                 network[node]['Crossing'] |= {x:positions[x]}
-            if 'Signal' in network[node] and x in network[node]['Signal']:
-                network[node]['Signal'] |= {x:positions[x]}
+            if 'Signal' in network[node]:
+                way = network[node]['Way']
 
+                if x+'ln' in network[node]['Signal'] or x+'lr' in network[node]['Signal'] or x+'rn' in network[node]['Signal'] or x+'rr' in network[node]['Signal']:
+                    #print(f'{x} to {node}')
+
+                    #line = next((k for k, v in network[node].items() if k.startswith('line') and min(v[0][0], v[1][0]) <= positions[x][0] <= max(v[0][0], v[1][0])), None)
+                    #line = min((k for k, v in network[node].items() if k.startswith('line')), key=lambda k: min(abs(network[node][k][0][0] - positions[x][0]), abs(network[node][k][1][0] - positions[x][0])), default=None)
+
+                    min_distance = float('inf')
+                    min_line = None
+
+                    for line_name, line in network[node].items():
+                        if line_name.startswith('line'):
+                            (x1, y1), (x2, y2) = line
+                            (x0, y0) = positions[x]
+                            dx, dy = x2 - x1, y2 - y1
+                            t = ((x0 - x1) * dx + (y0 - y1) * dy) / (dx * dx + dy * dy)
+                            if t < 0:
+                                t = 0
+                            elif t > 1:
+                                t = 1
+                            projected = x1 + t * dx, y1 + t * dy
+                            dist = math.hypot(x0 - projected[0], y0 - projected[1])
+                            if dist < min_distance:
+                                min_distance = dist
+                                min_line = line_name
+ 
+                    #print(f'//{x} {node} {min_line}')
+
+                    if min_line != None:
+                        if network[node][min_line][0][1] == network[node][min_line][1][1]:
+                            position = (positions[x][0],network[node][min_line][0][1])
+                        else:
+                            position = ((network[node][min_line][0][0] + network[node][min_line][1][0]) / 2, (network[node][min_line][0][1] + network[node][min_line][1][1]) / 2) #positions[x]
+
+                        print(f'*{x} {positions[x]} {node} {min_line} {way} {position}')
+
+                    if x+'ln' in network[node]['Signal']:
+                        network[node]['Signal'] |= {f'{x}ln':position}
+                    if x+'lr' in network[node]['Signal']:
+                        network[node]['Signal'] |= {f'{x}lr':position}
+                    if x+'rn' in network[node]['Signal']:
+                        network[node]['Signal'] |= {f'{x}rn':position}
+                    if x+'rr' in network[node]['Signal']:
+                        network[node]['Signal'] |= {f'{x}rr':position}
+                    
     return network
 
 def create_canvas(window, width, height):
@@ -422,11 +513,39 @@ def draw_lines(canvas, network, width, height, netElement):
                 x,y = value[i]
                 levelCrossing = LevelCrossing(canvas, *convert_coordinates(x, y))
                 net_elements[key] = levelCrossing
+        
         if key.startswith('Signal'):
             for i in value:
                 x,y = value[i]
-                signal = Signals(canvas, *convert_coordinates(x, y),i)
+                print(f'---{i} {x} {y}')
+                way = network[netElement]['Way']
+
+                min_distance = float('inf')
+                min_line = None
+                for line_name, line in network[netElement].items():
+                    if line_name.startswith('line'):
+                        (x1, y1), (x2, y2) = line
+                        (x0, y0) = (x,y)
+                        dx, dy = x2 - x1, y2 - y1
+                        t = ((x0 - x1) * dx + (y0 - y1) * dy) / (dx * dx + dy * dy)
+                        if t < 0:
+                            t = 0
+                        elif t > 1:
+                            t = 1
+                        projected = x1 + t * dx, y1 + t * dy
+                        dist = math.hypot(x0 - projected[0], y0 - projected[1])
+                        if dist < min_distance:
+                            min_distance = dist
+                            min_line = line_name
+
+                net_coordinate = None
+                if min_line != None:
+                    if network[netElement][min_line][0][1] != network[netElement][min_line][1][1]:
+                        net_coordinate = network[netElement][min_line]
+                        
+                signal = Signals(canvas, *convert_coordinates(x, y),i,way,net_coordinate)
                 net_elements[key] = signal
+        
     return net_elements
 
 def bind_events(canvas, lines):
