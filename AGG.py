@@ -54,24 +54,51 @@ class Platform:
             canvas.create_line(x-75, y+30, x+75, y+30, fill=color,width=3)
 
 class LevelCrossing:
-    def __init__(self, canvas, x, y ,color='blue'):
-        self.id = None
+    def __init__(self, canvas, x, y ,levelCrossings,levelCrossing_key,color='blue'):
+        self.pressed = False
+        self.levelCrossings = levelCrossings
+        self.levelCrossing_key = levelCrossing_key
 
-        canvas.create_line(x+30, y-60, x+30, y+60, fill=color,width=3)
-        canvas.create_line(x+30, y-60, x+45, y-75, fill=color,width=3)
-        canvas.create_line(x+30, y+60, x+45, y+75, fill=color,width=3)
+        # Create lines and store their ids
+        self.ids = [
+            canvas.create_line(x+30, y-60, x+30, y+60, fill=color,width=3),
+            canvas.create_line(x+30, y-60, x+45, y-75, fill=color,width=3),
+            canvas.create_line(x+30, y+60, x+45, y+75, fill=color,width=3),
+            canvas.create_line(x-30, y-60, x-30, y+60, fill=color,width=3),
+            canvas.create_line(x-30, y-60, x-45, y-75, fill=color,width=3),
+            canvas.create_line(x-30, y+60, x-45, y+75, fill=color,width=3)
+        ]
 
-        canvas.create_line(x-30, y-60, x-30, y+60, fill=color,width=3)
-        canvas.create_line(x-30, y-60, x-45, y-75, fill=color,width=3)
-        canvas.create_line(x-30, y+60, x-45, y+75, fill=color,width=3)
+        # Bind the click event to all lines
+        for id in self.ids:
+            canvas.tag_bind(id, "<Button-1>", self.on_net_element_click)
+
+    def on_net_element_click(self, event):
+        self.pressed = not self.pressed
+        new_color = 'red' if self.pressed else 'blue'
+        for levelCrossing in self.levelCrossings.values():
+            for id in levelCrossing.ids:
+                event.widget.itemconfig(id, fill=new_color)
+        if self.pressed:
+            print(f'LevelCrossing {self.levelCrossing_key} is closed')
+        else:
+            print(f'LevelCrossing {self.levelCrossing_key} is open')
 
 class Signals:
-    def __init__(self, canvas, x, y ,name,way,net_coordinate = None,color='grey'):
-        self.id = None
+    def __init__(self, canvas, x, y ,name,way,net_coordinate = None,other_signals=None , color='grey' ):
+        #self.id = None
         font_size = 8
+        self.pressed = False
+
+        self.canvas = canvas
+        self.color = color
+        self.other_signals = tuple(other_signals.keys()) if other_signals else ()
+        self.routes = other_signals if other_signals else {}
+        # next_signals = tuple(signal_routes[name].keys())
 
         direction = name[-2]
         side = name[-1]
+        self.name = name[:-2]
 
         if net_coordinate != None:
             slope = 'up' if (net_coordinate[1][1] - net_coordinate[0][1]) / (net_coordinate[1][0] - net_coordinate[0][0]) > 0 else 'down'
@@ -83,47 +110,107 @@ class Signals:
 
         if net_coordinate == None:
             if direction == 'l' and side == 'n':
-                color = 'red'
+                #color = 'red'
                 x0 = -1
                 y0 = 1
             if direction == 'l' and side == 'r':
-                color = 'green'
+                #color = 'green'
                 x0 = -1
                 y0 = 1
             if direction == 'r' and side == 'n':
-                color = 'blue'
+                #color = 'blue'
                 x0 = -1
                 y0 = 1
             if direction == 'r' and side == 'r':
-                color = 'black'
+                #color = 'black'
                 x0 = 1
                 y0 = -1
 
             x0 = x0 if way == '>' else -x0
             y0 = y0 if way == '>' else -y0
 
-        
-            canvas.create_text(x,y-(y0*55),text=name[:-2],fill=color,font=font_size)
+            self.id = canvas.create_text(x,y-(y0*55),text=name[:-2],fill=color,font=font_size)
             canvas.create_line(x, (y-y0*30), (x-x0*25), (y-y0*30), fill=color,width=3)
             canvas.create_line(x, (y-y0*30)+10, x, (y-y0*30)-10, fill=color,width=3)
             canvas.create_oval((x-x0*40)-r,(y-y0*30)-r,(x-x0*40)+r,(y-y0*30)+r,outline=color,width=3)
         else:
+            x0 = 0
+            y0 = 0
             if slope == 'up' and way == '>':
-                color = 'orange'
+                #color = 'orange'
+                self.id =  canvas.create_text(x+70, y+25, text=name, fill=color, font=font_size)
+                canvas.create_line(x+30, y+9, x+49, y-14, fill=color,width=3)
+                canvas.create_line(x+60, y-5, x+38, y-22, fill=color,width=3)
+                canvas.create_oval((x+20)-r, (y+20)-r, (x+20)+r, (y+20)+r, outline=color, width=3)
             if slope == 'up' and way == '<':
                 color = 'grey'
             if slope == 'down' and way == '>':
-                color = 'pink'
+                #color = 'pink'
+                self.id =  canvas.create_text(x+100, y-25, text=name, fill=color, font=font_size)
+                canvas.create_line(x+82, y+8, x+55, y-16, fill=color,width=3)
+                canvas.create_line(x+45, y-5, x+65, y-25, fill=color,width=3)
+                canvas.create_oval((x+90)-r, (y+20)-r, (x+90)+r, (y+20)+r, outline=color, width=3)
             if slope == 'down' and way == '<':
-                color = 'cyan'
+                #color = 'cyan'
+                self.id = canvas.create_text(x-100, y+45, text=name, fill=color, font=font_size)
+                canvas.create_line(x-55, y+35, x-79, y+10, fill=color,width=3)
+                canvas.create_line(x-65, y+35+10, x-45, y+35-10, fill=color,width=3)
+                canvas.create_oval((x-90)-r, y-r, (x-90)+r, y+r, outline=color, width=3)
 
-            #canvas.create_text(x,y-(y0*55),text=name,fill='orange',font=font_size)
-            #canvas.create_line(x, (y-y0*30), (x-x0*25), (y-y0*30), fill='orange',width=3)
-            #canvas.create_line(x, (y-y0*30)+10, x, (y-y0*30)-10, fill='orange',width=3)
-            canvas.create_oval((x-x0*40)-r,(y-y0*30)-r,(x-x0*40)+r,(y-y0*30)+r,outline=color,width=3)
+        canvas.tag_bind(self.id, "<Button-1>", self.on_signal_click)
 
+    def on_signal_click(self, event):
+        self.pressed = not self.pressed
 
+        for signal_name in signals:
+            signal = signals[signal_name]
 
+            match self.color:
+                case 'grey':
+                    if signal_name == self.name:
+                        print(f'Signal {self.name} is selected')
+                        color = 'green'
+                        self.canvas.itemconfig(self.id, fill=color)
+
+                    if signal_name in self.other_signals:
+                        signal.color = 'red'
+                        signal.canvas.itemconfig(signal.id, fill=signal.color)
+                    else:
+                        if signal_name != self.name:
+                            signal.color = 'grey70'
+                            signal.canvas.itemconfig(signal.id, fill=signal.color)
+                            signal.canvas.tag_unbind(signal.id, "<Button-1>")
+                case 'green':
+                    if signal_name == self.name:
+                        print(f'Signal {self.name} is released')
+                        color = 'grey'
+                        self.canvas.itemconfig(self.id, fill=color)
+                    if signal_name in self.other_signals:
+                        signal.color = 'grey'
+                        signal.canvas.itemconfig(signal.id, fill=signal.color)
+                    else:
+                        if signal_name != self.name:
+                            signal.color = 'grey'
+                            signal.canvas.itemconfig(signal.id, fill=signal.color)
+                            signal.canvas.tag_bind(signal.id, "<Button-1>", signal.on_signal_click)
+                case 'red':
+                    if signal_name == self.name:
+                        #print(f'Route {self.name} {self.routes} is launched')
+                        color = 'grey'
+                        self.canvas.itemconfig(self.id, fill=color)
+                    else:
+                        color = 'grey'
+                        if signal.color == 'green':
+                            print(f'Route {signal.routes[self.name]} launched')
+                        signal.color = 'grey'
+                        signal.canvas.itemconfig(signal.id, fill=signal.color)
+                        signal.canvas.tag_bind(signal.id, "<Button-1>", signal.on_signal_click)
+                case _:
+                    color = 'grey'
+                    self.canvas.itemconfig(self.id, fill=color)
+
+        self.color = color
+            
 def get_netElements(RML):
     network = {}
     coords = {}
@@ -377,7 +464,7 @@ def get_netElements(RML):
                 x_pos = int(float(i.Coordinate[0].X)) if float(i.Coordinate[0].X).is_integer() else float(i.Coordinate[0].X)
                 y_pos = -int(float(i.Coordinate[0].Y))  if float(i.Coordinate[0].Y).is_integer() else -float(i.Coordinate[0].Y)
                 positions[name] = (x_pos,y_pos)
-                print(f'-{ref} {name} {positions[name]}')
+                #print(f'-{ref} {name} {positions[name]}')
 
     for x in positions:
         #print(f'{x} {positions[x]}')
@@ -405,11 +492,6 @@ def get_netElements(RML):
                 way = network[node]['Way']
 
                 if x+'ln' in network[node]['Signal'] or x+'lr' in network[node]['Signal'] or x+'rn' in network[node]['Signal'] or x+'rr' in network[node]['Signal']:
-                    #print(f'{x} to {node}')
-
-                    #line = next((k for k, v in network[node].items() if k.startswith('line') and min(v[0][0], v[1][0]) <= positions[x][0] <= max(v[0][0], v[1][0])), None)
-                    #line = min((k for k, v in network[node].items() if k.startswith('line')), key=lambda k: min(abs(network[node][k][0][0] - positions[x][0]), abs(network[node][k][1][0] - positions[x][0])), default=None)
-
                     min_distance = float('inf')
                     min_line = None
 
@@ -437,7 +519,7 @@ def get_netElements(RML):
                         else:
                             position = ((network[node][min_line][0][0] + network[node][min_line][1][0]) / 2, (network[node][min_line][0][1] + network[node][min_line][1][1]) / 2) #positions[x]
 
-                        print(f'*{x} {positions[x]} {node} {min_line} {way} {position}')
+                        #print(f'*{x} {positions[x]} {node} {min_line} {way} {position}')
 
                     if x+'ln' in network[node]['Signal']:
                         network[node]['Signal'] |= {f'{x}ln':position}
@@ -453,11 +535,15 @@ def get_netElements(RML):
 def create_canvas(window, width, height):
     return tk.Canvas(window, width=width, height=height)
 
+signals = {}
+signal_routes = {}
+
 def draw_lines(canvas, network, width, height, netElement):
     def convert_coordinates(x, y):
         return x + width // 2, height // 2 - y
 
     net_elements = {}
+    levelCrossings = {}
     for key, value in network[netElement].items():
         if key.startswith('line'):
             x1y1, x2y2 = value
@@ -467,7 +553,9 @@ def draw_lines(canvas, network, width, height, netElement):
             for i in value:
                 x,y = value[i]
                 line_xs = [coord[0] for key, value in network[netElement].items() if key.startswith('line') for coord in value]
-                direction = '>' if all(x >= line_x for line_x in line_xs) else '<'
+                #print(f'---{i} {line_xs} | {int(x)}')
+                direction = '>' if all(int(x) >= line_x for line_x in line_xs) else '<'
+
                 #print(f'{i} {x} {line_xs} {direction}')
 
                 buffer_stop = BufferStop(canvas, *convert_coordinates(x, y), direction)
@@ -511,13 +599,13 @@ def draw_lines(canvas, network, width, height, netElement):
         if key.startswith('LevelCrossing'):
             for i in value:
                 x,y = value[i]
-                levelCrossing = LevelCrossing(canvas, *convert_coordinates(x, y))
-                net_elements[key] = levelCrossing
-        
+                levelCrossing = LevelCrossing(canvas, *convert_coordinates(x, y), levelCrossings,i)
+                levelCrossings[key] = levelCrossing       
         if key.startswith('Signal'):
             for i in value:
                 x,y = value[i]
-                print(f'---{i} {x} {y}')
+                name = i[:-2]
+                #print(f'---{i} {x} {y}')
                 way = network[netElement]['Way']
 
                 min_distance = float('inf')
@@ -542,9 +630,13 @@ def draw_lines(canvas, network, width, height, netElement):
                 if min_line != None:
                     if network[netElement][min_line][0][1] != network[netElement][min_line][1][1]:
                         net_coordinate = network[netElement][min_line]
-                        
-                signal = Signals(canvas, *convert_coordinates(x, y),i,way,net_coordinate)
-                net_elements[key] = signal
+
+                next_signals = None
+                if name in signal_routes:
+                    next_signals = signal_routes[name]
+                    #print(next_signals)
+                signal = Signals(canvas, *convert_coordinates(x, y),i,way,net_coordinate, other_signals = next_signals)
+                signals[name] = signal
         
     return net_elements
 
@@ -563,13 +655,27 @@ def bind_events(canvas, lines):
     canvas.bind("<B1-Motion>", on_drag)
     canvas.bind("<MouseWheel>", on_zoom)
 
-def AGG(RML,test = False):
+def AGG(RML,routes,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
     print("Reading railML object")
     netElements = get_netElements(RML)
 
-    for netElement in netElements:
-        print(f'{netElement} {netElements[netElement]}')
+    #for netElement in netElements:
+    #    print(f'{netElement} {netElements[netElement]}')
+
+    for route in routes:
+        print(f'R{route} {routes[route]}')
+
+        start = 'S'+str(routes[route]['Start'][1:])
+        end = 'S'+str(routes[route]['End'][1:])
+
+        if start not in signal_routes:
+            signal_routes[start] = {}
+
+        signal_routes[start] |= {end:f'R{route}'}
+
+    for signal in signal_routes:
+        print(f'{signal} {signal_routes[signal]}')
 
     print("Generating GUI layout")
     
