@@ -84,6 +84,13 @@ class LevelCrossing:
         else:
             print(f'LevelCrossing {self.levelCrossing_key} is open')
 
+class Border:
+    def __init__(self, canvas, x, y, direction ,color='black'):
+        sign = 1 if direction == '>' else -1
+        self.id = None
+        canvas.create_line(x+sign*5, y, x+sign*10, y, fill=color,width=3)
+        canvas.create_line(x+sign*15, y, x+sign*20, y, fill=color,width=3)
+
 class Signals:
     def __init__(self, canvas, x, y ,name,way,net_coordinate = None,other_signals=None , color='grey' ):
         #self.id = None
@@ -211,6 +218,50 @@ class Signals:
 
         self.color = color
             
+class Switch:
+    def __init__(self, canvas, x, y ,switches, switch_key, color='black'):
+        r = 15
+        self.pressed = False
+        self.switches = switches
+        self.switch_key = switch_key
+
+        self.ids = [
+        canvas.create_oval(x-r, y-r, x+r, y+r, outline=color, width=3, fill = 'white'),
+        canvas.create_line(x-r, y, x+r, y, fill=color, width=3)
+        ]
+        self.canvas = canvas
+        self.previous_items = set(self.canvas.find_all())
+        self.check_for_changes()
+        # Bind the click event to all lines
+        for id in self.ids:
+            canvas.tag_bind(id, "<Button-1>", self.switch_position)
+
+    def switch_position(self, event):
+        self.pressed = not self.pressed
+        new_color = 'red' if self.pressed else 'black'
+        for switch in self.switches.values():
+            #for id in switch.ids:
+            #    event.widget.itemconfig(id, fill=new_color)
+            event.widget.itemconfig(switch.ids[1], fill=new_color)
+        if self.pressed:
+            #print(f'Switch {self.levelCrossing_key} is closed')
+            print(f'Switch on')
+        else:
+            #print(f'LevelCrossing {self.levelCrossing_key} is open')
+            print(f'Switch off')
+        self.raise_to_top()
+
+    def check_for_changes(self):
+        current_items = set(self.canvas.find_all())
+        if current_items != self.previous_items:
+            self.raise_to_top()
+        self.previous_items = current_items
+        self.canvas.after(100, self.check_for_changes)  # Check for changes every 100 milliseconds
+
+    def raise_to_top(self):
+        for id in self.ids:
+            self.canvas.tag_raise(id)
+
 def get_netElements(RML):
     network = {}
     coords = {}
@@ -544,6 +595,7 @@ def draw_lines(canvas, network, width, height, netElement):
 
     net_elements = {}
     levelCrossings = {}
+    switches = {}
     for key, value in network[netElement].items():
         if key.startswith('line'):
             x1y1, x2y2 = value
@@ -637,7 +689,12 @@ def draw_lines(canvas, network, width, height, netElement):
                     #print(next_signals)
                 signal = Signals(canvas, *convert_coordinates(x, y),i,way,net_coordinate, other_signals = next_signals)
                 signals[name] = signal
-        
+        if key.startswith('Switch'):
+            for i in value:
+                x,y = value[i]
+                switch = Switch(canvas, *convert_coordinates(x, y),switches,i)
+                switches[key] = switch
+
     return net_elements
 
 def bind_events(canvas, lines):
@@ -660,11 +717,11 @@ def AGG(RML,routes,test = False):
     print("Reading railML object")
     netElements = get_netElements(RML)
 
-    #for netElement in netElements:
-    #    print(f'{netElement} {netElements[netElement]}')
+    for netElement in netElements:
+        print(f'{netElement} {netElements[netElement]}')
 
     for route in routes:
-        print(f'R{route} {routes[route]}')
+        #print(f'R{route} {routes[route]}')
 
         start = 'S'+str(routes[route]['Start'][1:])
         end = 'S'+str(routes[route]['End'][1:])
@@ -674,8 +731,8 @@ def AGG(RML,routes,test = False):
 
         signal_routes[start] |= {end:f'R{route}'}
 
-    for signal in signal_routes:
-        print(f'{signal} {signal_routes[signal]}')
+    #for signal in signal_routes:
+    #    print(f'{signal} {signal_routes[signal]}')
 
     print("Generating GUI layout")
     
