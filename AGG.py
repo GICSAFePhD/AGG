@@ -382,14 +382,14 @@ def get_netElements(RML):
 
                 if 'Switch' not in network[nodeStart]:
                     network[nodeStart] |= {'Switch':{}}
-                #if 'Switch_C' not in network[nodeContinue]:
-                #    network[nodeContinue] |= {'Switch_C':{}}
-                #if 'Switch_B' not in network[nodeBranch]:
-                #    network[nodeBranch] |= {'Switch_B':{}}
+                if 'Switch_C' not in network[nodeContinue]:
+                    network[nodeContinue] |= {'Switch_C':{}}
+                if 'Switch_B' not in network[nodeBranch]:
+                    network[nodeBranch] |= {'Switch_B':{}}
 
                 network[nodeStart]['Switch'] |= {SwitchIS.Name[0].Name:()}
-                #network[nodeContinue]['Switch_C'] |= {SwitchIS.Name[0].Name:()} 
-                #network[nodeBranch]['Switch_B'] |= {SwitchIS.Name[0].Name:()}
+                network[nodeContinue]['Switch_C'] |= {SwitchIS.Name[0].Name:()} 
+                network[nodeBranch]['Switch_B'] |= {SwitchIS.Name[0].Name:()}
             
             if (SwitchIS.Type == "doubleSwitchCrossing"):
                 node = SwitchIS.SpotLocation[0].NetElementRef
@@ -537,6 +537,10 @@ def get_netElements(RML):
                     network[node]['Platform'] |= {f'{x}r':positions[x]}
             if 'Switch' in network[node] and x in network[node]['Switch']:
                 network[node]['Switch'] |= {x:positions[x]}
+            if 'Switch_B' in network[node] and x in network[node]['Switch_B']:
+                network[node]['Switch_B'] |= {x:positions[x]}
+            if 'Switch_C' in network[node] and x in network[node]['Switch_C']:
+                network[node]['Switch_C'] |= {x:positions[x]}
             if 'Crossing' in network[node] and x in network[node]['Crossing']:
                 network[node]['Crossing'] |= {x:positions[x]}
             if 'Signal' in network[node]:
@@ -586,8 +590,54 @@ def get_netElements(RML):
 def create_canvas(window, width, height):
     return tk.Canvas(window, width=width, height=height)
 
+def calculate_coordinate(core_point, line_points, distance):
+    # Calculate the direction vector of the line
+    direction_vector = (line_points[1][0] - line_points[0][0], line_points[1][1] - line_points[0][1])
+    # Calculate the magnitude of the direction vector
+    magnitude = (direction_vector[0]**2 + direction_vector[1]**2)**0.5
+    # Normalize the direction vector
+    normalized_vector = (direction_vector[0] / magnitude, direction_vector[1] / magnitude)
+    # Calculate the new coordinate
+    new_coordinate = (int(core_point[0] - distance * normalized_vector[0]), int(core_point[1] - distance * normalized_vector[1]))
+    return new_coordinate
+
+def create_switches_pos(netElements):
+    switches_pos = {}
+    for ne in netElements:
+        if 'Switch' in netElements[ne]:
+            for switch in netElements[ne]['Switch']:
+                core = netElements[ne]['Switch'][switch]
+                switches_pos[switch] = [core]
+
+                line_key = next(key for key in netElements[ne] if key.startswith('line') and core in netElements[ne][key])
+                line = netElements[ne][line_key]
+                #switches_pos[switch].append(line)
+                point_on_line = calculate_coordinate(core, line, 10)
+                switches_pos[switch].append(point_on_line)
+
+
+
+        if 'Switch_B' in netElements[ne] and 1>2:
+            for switch_b in netElements[ne]['Switch_B']:
+                core_b = netElements[ne]['Switch_B'][switch_b]
+                line_key_b = next(key for key in netElements[ne] if key.startswith('line') and core_b in netElements[ne][key])
+                line_b = netElements[ne][line_key_b]
+                point_on_line_b = calculate_coordinate(core_b, line_b, 10)
+                if switch_b in switches_pos:
+                    switches_pos[switch_b].append((core_b, point_on_line_b))
+        if 'Switch_C' in netElements[ne] and 1>2:
+            for switch_c in netElements[ne]['Switch_C']:
+                core_c = netElements[ne]['Switch_C'][switch_c]
+                line_key_c = next(key for key in netElements[ne] if key.startswith('line') and core_c in netElements[ne][key])
+                line_c = netElements[ne][line_key_c]
+                point_on_line_c = calculate_coordinate(core_c, line_c, 10)
+                if switch_c in switches_pos:
+                    switches_pos[switch_c].append((core_c, point_on_line_c))
+    return switches_pos
+
 signals = {}
 signal_routes = {}
+switches_pos = {}
 
 def draw_lines(canvas, network, width, height, netElement):
     def convert_coordinates(x, y):
@@ -722,17 +772,19 @@ def AGG(RML,routes,test = False):
 
     for route in routes:
         #print(f'R{route} {routes[route]}')
-
         start = 'S'+str(routes[route]['Start'][1:])
         end = 'S'+str(routes[route]['End'][1:])
-
         if start not in signal_routes:
             signal_routes[start] = {}
-
         signal_routes[start] |= {end:f'R{route}'}
 
     #for signal in signal_routes:
     #    print(f'{signal} {signal_routes[signal]}')
+    
+    switches_pos = create_switches_pos(netElements)
+
+    for switch in switches_pos:
+        print(f'{switch} {switches_pos[switch]}')
 
     print("Generating GUI layout")
     
@@ -764,5 +816,4 @@ def AGG(RML,routes,test = False):
 
     # Update the window again to reflect the changes
     window.update_idletasks()
-
     window.mainloop()
