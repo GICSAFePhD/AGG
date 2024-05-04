@@ -1,6 +1,7 @@
 import tkinter as tk
 import re
 import math
+import traceback
 
 class NetElement:
     def __init__(self, canvas, x1, y1, x2, y2, net_elements, net_element_key, color='black'):
@@ -219,7 +220,7 @@ class Signals:
         self.color = color
             
 class Switch:
-    def __init__(self, canvas, width,height, switches, switches_pos, switch_key,  color='black'):
+    def __init__(self, canvas, width,height, switches_pos, switch_key,  color='black'):
         r = 15
         self.pressed = False
         self.switches = switches
@@ -232,13 +233,13 @@ class Switch:
         self.branch = self.convert_coordinates(switches_pos[switch_key][2][0],switches_pos[switch_key][2][1])
         self.cont = self.convert_coordinates(switches_pos[switch_key][3][0],switches_pos[switch_key][3][1])
 
-        print(f'{switch_key} | {switches_pos[switch_key]} | {self.core}')
+        #print(f'{switch_key} | {switches_pos[switch_key]} | {self.core}')
 
         self.ids = [
-        canvas.create_oval(self.core[0]-r, self.core[1]-r, self.core[0]+r, self.core[1]+r, outline=color, width=3, fill = 'white'),
-        canvas.create_line(self.core[0], self.core[1], self.start[0], self.start[1], fill=color, width=3),
-        canvas.create_line(self.core[0], self.core[1], self.branch[0], self.branch[1], fill='blue', width=3),
-        canvas.create_line(self.core[0], self.core[1], self.cont[0], self.cont[1], fill='green', width=3)
+        #canvas.create_oval(self.core[0]-r, self.core[1]-r, self.core[0]+r, self.core[1]+r, outline='white', width=3, fill = 'white'),
+        canvas.create_line(self.core[0], self.core[1], self.start[0], self.start[1], fill=color, width=5),
+        canvas.create_line(self.core[0], self.core[1], self.branch[0], self.branch[1], fill='white', width=5),
+        canvas.create_line(self.core[0], self.core[1], self.cont[0], self.cont[1], fill=color, width=5)
         ]
         self.canvas = canvas
         self.previous_items = set(self.canvas.find_all())
@@ -249,17 +250,23 @@ class Switch:
 
     def switch_position(self, event):
         self.pressed = not self.pressed
-        new_color = 'red' if self.pressed else 'black'
-        for switch in self.switches.values():
-            #for id in switch.ids:
-            #    event.widget.itemconfig(id, fill=new_color)
-            event.widget.itemconfig(switch.ids[1], fill=new_color)
+        new_color = 'black' if self.pressed else 'white'
+        prev_color = 'white' if self.pressed else 'black'
+
+
         if self.pressed:
-            #print(f'Switch {self.levelCrossing_key} is closed')
-            print(f'Switch on')
+            event.widget.itemconfig(self.ids[-2], fill='black')
+            event.widget.itemconfig(self.ids[-1], fill='white')
+            self.canvas.tag_raise(self.ids[-2])
         else:
-            #print(f'LevelCrossing {self.levelCrossing_key} is open')
-            print(f'Switch off')
+            event.widget.itemconfig(self.ids[-2], fill='white')
+            event.widget.itemconfig(self.ids[-1], fill='black')
+            self.canvas.tag_raise(self.ids[-1])
+
+        if self.pressed:
+            print(f'Switch {self.switch_key} is reverse')
+        else:
+            print(f'Switch {self.switch_key} is normal')
         self.raise_to_top()
 
     def convert_coordinates(self,x, y):
@@ -376,23 +383,15 @@ def get_netElements(RML):
     if SwitchesIS != None: 
         for SwitchIS in SwitchesIS[0].SwitchIS:
             if (SwitchIS.Type == "ordinarySwitch"):
-
-                Net = SwitchIS.LeftBranch[0].NetRelationRef.split('_')[1].split('ne')
-                nodeLeft1 = 'ne' + Net[1]        
-                nodeLeft2 = 'ne' + Net[2]  
-                Net = SwitchIS.RightBranch[0].NetRelationRef.split('_')[1].split('ne')
-                nodeRight1 = 'ne' + Net[1]        
-                nodeRight2 = 'ne' + Net[2]  
                 
-                continueCourse = SwitchIS.ContinueCourse
-                branchCourse = SwitchIS.BranchCourse
+                main = SwitchIS.SpotLocation[0].NetElementRef
+                left = SwitchIS.LeftBranch[0].NetRelationRef.split('_')[1].replace(main,'')
+                left_radius = SwitchIS.LeftBranch[0].Radius
+                right = SwitchIS.RightBranch[0].NetRelationRef.split('_')[1].replace(main,'')
 
-                nodeStart = nodeLeft1 if (nodeLeft1 == nodeRight1 or nodeLeft1 == nodeRight2) else nodeLeft2
-                nodeLeft = nodeLeft2 if (nodeStart == nodeLeft1) else nodeLeft1
-                nodeRight = nodeRight2 if (nodeStart == nodeRight1) else nodeRight1
-
-                nodeContinue = nodeLeft if continueCourse == "Right" else nodeRight
-                nodeBranch = nodeRight if branchCourse == "Left" else nodeLeft
+                nodeStart = main
+                nodeContinue = left if left_radius == "0" else right
+                nodeBranch = right if left_radius == "0"  else left
 
                 if 'Switch' not in network[nodeStart]:
                     network[nodeStart] |= {'Switch':{}}
@@ -601,8 +600,8 @@ def get_netElements(RML):
                     
     return network
 
-def create_canvas(window, width, height):
-    return tk.Canvas(window, width=width, height=height)
+def create_canvas(window, width, height,bg_color):
+    return tk.Canvas(window, width=width, height=height, bg=bg_color)
 
 def calculate_coordinate(core_point, line_points, distance):
     # Calculate the direction vector of the line
@@ -626,33 +625,41 @@ def calculate_coordinate(core_point, line_points, distance):
         new_x = core_point[0] - distance * normalized_dx
         new_y = core_point[1] - distance * normalized_dy
     
-    return (int(new_x), int(new_y))
+    #return (int(new_x), int(new_y))
+    return (new_x, new_y)
 
 def create_switches_pos(netElements):
     switches_pos = {}
+
     for ne in netElements:
         if 'Switch' in netElements[ne]:
             for switch in netElements[ne]['Switch']:
                 core = netElements[ne]['Switch'][switch]
                 switches_pos[switch] = [core]
 
-                line_key = next(key for key in netElements[ne] if key.startswith('line') and core in netElements[ne][key])
-                line = netElements[ne][line_key]
-                #switches_pos[switch].append(line)
-                point_on_line = calculate_coordinate(core, line, 15)
-                switches_pos[switch].append(point_on_line)
+                print(f'{ne} {switch} {core}')
 
+                #line_key = next(key for key in netElements[ne] if key.startswith('line') and core in netElements[ne][key])
+                line_key = next(key for key in netElements[ne] if key.startswith('line') and tuple(map(int, core)) in netElements[ne][key])
+
+                line = netElements[ne][line_key]
+                point_on_line = calculate_coordinate(core, line, 50)
+
+                print(f'{switch} -|- {core} -|- {ne} {line_key} {line} | {point_on_line}')
+
+                switches_pos[switch].append(point_on_line)
 
     for ne in netElements:
         if 'Switch_B' in netElements[ne]:
             for switch_b in netElements[ne]['Switch_B']:
                 core = switches_pos[switch_b][0]
                 
-                line_key = next(key for key in netElements[ne] if key.startswith('line') and core in netElements[ne][key])
-                line = netElements[ne][line_key]
-                point_on_line = calculate_coordinate(core, line, 15)
+                line_key = next(key for key in netElements[ne] if key.startswith('line') and tuple(map(int, core)) in netElements[ne][key])
 
-                #print(f'{switch_b} -|- {core} -|- {ne} {line_key} {line} | {point_on_line}')
+                line = netElements[ne][line_key]
+                point_on_line = calculate_coordinate(core, line, 50)
+
+                print(f'{switch_b} -|- {core} -|- {ne} {line_key} {line} | {point_on_line}')
 
                 switches_pos[switch_b].append(point_on_line)
 
@@ -661,9 +668,9 @@ def create_switches_pos(netElements):
             for switch_c in netElements[ne]['Switch_C']:
                 core = switches_pos[switch_c][0]
                 
-                line_key = next(key for key in netElements[ne] if key.startswith('line') and core in netElements[ne][key])
+                line_key = next(key for key in netElements[ne] if key.startswith('line') and tuple(map(int, core)) in netElements[ne][key])
                 line = netElements[ne][line_key]
-                point_on_line = calculate_coordinate(core, line, 15)
+                point_on_line = calculate_coordinate(core, line, 50)
 
                 #print(f'{switch_c} -|- {core} -|- {ne} {line_key} {line} | {point_on_line}')
 
@@ -673,6 +680,7 @@ def create_switches_pos(netElements):
 
 signals = {}
 signal_routes = {}
+switches = {}
 
 def draw_lines(canvas, network, switches_pos,width, height, netElement):
     def convert_coordinates(x, y):
@@ -680,7 +688,7 @@ def draw_lines(canvas, network, switches_pos,width, height, netElement):
 
     net_elements = {}
     levelCrossings = {}
-    switches = {}
+    
     for key, value in network[netElement].items():
         if key.startswith('line'):
             x1y1, x2y2 = value
@@ -776,9 +784,10 @@ def draw_lines(canvas, network, switches_pos,width, height, netElement):
                 signals[name] = signal
         if key.startswith('Switch'):
             for i in value:
-                x,y = value[i]
-                switch = Switch(canvas,width,height,switches,switches_pos,i)
-                switches[key] = switch
+                if i not in switches:
+                    print(f'----{key} {i}')
+                    x,y = value[i]
+                    switches[i] = Switch(canvas,width,height,switches_pos,i)
 
     return net_elements
 
@@ -826,7 +835,10 @@ def AGG(RML,routes,test = False):
     
     window = tk.Tk()
     width, height = 1200, 800
-    canvas = create_canvas(window, width, height)
+    
+    bg_color = "white"  # Define the background color
+
+    canvas = create_canvas(window, width, height,bg_color)
     canvas.pack(fill='both', expand=True)
 
     for netElement in netElements:
