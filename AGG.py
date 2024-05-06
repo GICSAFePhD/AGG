@@ -1,7 +1,7 @@
 import tkinter as tk
 import re
 import math
-import functools
+import traceback
 
 class CanvasText:
     def __init__(self, canvas, message, width, height):
@@ -105,9 +105,9 @@ class LevelCrossing:
     def on_net_element_click(self, event):
         self.pressed = not self.pressed
         new_color = 'red' if self.pressed else 'blue'
-        for levelCrossing in self.levelCrossings.values():
-            for id in levelCrossing.ids:
-                event.widget.itemconfig(id, fill=new_color)
+        #for levelCrossing in self.levelCrossings.values():
+        for id in self.ids:
+            event.widget.itemconfig(id, fill=new_color)
         if self.pressed:
             print(f'LevelCrossing {self.levelCrossing_key} is closed')
         else:
@@ -279,7 +279,7 @@ class Switch:
             for id in self.ids:
                 canvas.tag_bind(id, "<Button-1>", self.switch_position)
 
-        if len(switches_pos[switch_key]) == 5:
+        if len(switches_pos[switch_key]) == 5 and switches_pos[switch_key][0] != (0,0):
             self.type = 'double'
             self.state = 0
 
@@ -300,11 +300,6 @@ class Switch:
             self.branchL = self.convert_coordinates(different_y[0][0],different_y[0][1])
             self.branchR = self.convert_coordinates(different_y[1][0],different_y[1][1])
 
-            #self.normalL =  self.convert_coordinates(switches_pos[switch_key][1][0],switches_pos[switch_key][1][1])
-            #self.normalR =  self.convert_coordinates(switches_pos[switch_key][2][0],switches_pos[switch_key][2][1])
-            #self.branchL =  self.convert_coordinates(switches_pos[switch_key][3][0],switches_pos[switch_key][3][1])
-            #self.branchR =  self.convert_coordinates(switches_pos[switch_key][4][0],switches_pos[switch_key][4][1])
-
             #print(f'{switch_key} | {switches_pos[switch_key]} | {self.core}')
 
             self.ids = [
@@ -322,6 +317,30 @@ class Switch:
             for id in self.ids:
                 canvas.tag_bind(id, "<Button-1>", self.switch_position)
 
+        if len(switches_pos[switch_key]) == 5 and switches_pos[switch_key][0] == (0,0):
+            self.type = 'scissor'
+            self.state = 0
+
+            #print(f'{switch_key} | {switches_pos[switch_key]} | {self.core}')
+
+            self.BranchUpRight      = self.convert_coordinates(switches_pos[switch_key][1][0],switches_pos[switch_key][1][1])
+            self.BranchUpLeft       = self.convert_coordinates(switches_pos[switch_key][2][0],switches_pos[switch_key][2][1])
+            self.BranchDownLeft     = self.convert_coordinates(switches_pos[switch_key][3][0],switches_pos[switch_key][3][1])
+            self.BranchDownRight    = self.convert_coordinates(switches_pos[switch_key][4][0],switches_pos[switch_key][4][1])
+
+            self.ids = [
+            #canvas.create_oval(self.core[0]-r, self.core[1]-r, self.core[0]+r, self.core[1]+r, outline='white', width=3, fill = 'white'),
+            canvas.create_line(self.BranchUpLeft[0], self.BranchUpLeft[1], self.BranchDownRight[0], self.BranchDownRight[1], fill='white', width=5),
+            canvas.create_line(self.BranchUpRight[0], self.BranchUpRight[1], self.BranchDownLeft[0], self.BranchDownLeft[1], fill=color, width=5)
+            ]
+            
+            self.canvas = canvas
+            self.previous_items = set(self.canvas.find_all())
+            self.check_for_changes()
+            # Bind the click event to all lines
+            for id in self.ids:
+                canvas.tag_bind(id, "<Button-1>", self.switch_position)
+            
     def switch_position(self, event):
         if self.type == 'simple':
             self.pressed = not self.pressed
@@ -374,18 +393,24 @@ class Switch:
                     self.canvas.tag_raise(self.ids[-1])
                 case _:
                     print(f'Switch {self.switch_key} invalid') 
-            '''       
-            if self.pressed:
-                event.widget.itemconfig(self.ids[-2], fill='black')
-                event.widget.itemconfig(self.ids[-1], fill='white')
-                self.canvas.tag_raise(self.ids[-2])
-                print(f'Switch {self.switch_key} is reverse')
-            else:
-                event.widget.itemconfig(self.ids[-2], fill='white')
-                event.widget.itemconfig(self.ids[-1], fill='black')
-                self.canvas.tag_raise(self.ids[-1])
-                print(f'Switch {self.switch_key} is normal')
-            '''
+
+        if self.type == 'scissor':
+            self.state = 1 if self.state == 0 else 0
+
+            match self.state:   # RR NN
+                case 0:
+                    print(f'Switch {self.switch_key} X-reverse')
+                    event.widget.itemconfig(self.ids[-2], fill='white')
+                    event.widget.itemconfig(self.ids[-1], fill='black')
+                    self.canvas.tag_raise(self.ids[-1])
+                case 1:
+                    print(f'Switch {self.switch_key} X-normal')
+                    event.widget.itemconfig(self.ids[-2], fill='black')
+                    event.widget.itemconfig(self.ids[-1], fill='white')
+                    self.canvas.tag_raise(self.ids[-2])
+                case _:
+                    print(f'Switch {self.switch_key} invalid') 
+
         self.raise_to_top()
 
     def convert_coordinates(self,x, y):
@@ -405,6 +430,7 @@ class Switch:
 def get_netElements(RML):
     network = {}
     coords = {}
+    positions = {}
     NetElements =       RML.Infrastructure.Topology.NetElements
     NetRelations =		RML.Infrastructure.Topology.NetRelations
     SwitchesIS =        RML.Infrastructure.FunctionalInfrastructure.SwitchesIS
@@ -415,8 +441,9 @@ def get_netElements(RML):
     RailJoints =        RML.Infrastructure.FunctionalInfrastructure.TrainDetectionElements
     Crossings =         RML.Infrastructure.FunctionalInfrastructure.Crossings
     SignalsIS =         RML.Infrastructure.FunctionalInfrastructure.SignalsIS
-
-    visualization = RML.Infrastructure.InfrastructureVisualizations
+    
+    Visualization  =    RML.Infrastructure.InfrastructureVisualizations
+    MovableCrossings =  RML.Interlocking.AssetsForIL[0].MovableCrossings
 
     if NetElements != None:
         for i in NetElements.NetElement:
@@ -626,6 +653,22 @@ def get_netElements(RML):
             if crossing not in network[node4]['Crossing']:
                 network[node4]['Crossing'] |= {crossing:()}
 
+            # Extract the 'lineX' coordinates from each netElement
+            coordinates = []
+            for ne in [node1, node2, node3, node4]:
+                for line in network[ne]:
+                    if 'line' in line:
+                        coordinates.extend(network[ne][line])
+
+            # Find the common coordinate
+            common_coordinate = None
+            for coordinate in coordinates:
+                if coordinates.count(coordinate) == 4:
+                    common_coordinate = coordinate
+                    break
+            #print(f'{crossing} {common_coordinate}')
+            positions[crossing] = (int(common_coordinate[0]),int(common_coordinate[1]))
+
     if SignalsIS != None:
         for SignalIS in SignalsIS.SignalIS:
             node = SignalIS.SpotLocation[0].NetElementRef
@@ -637,17 +680,16 @@ def get_netElements(RML):
                 network[node] |= {'Signal':{}}
             if signal not in network[node]['Signal']:
                 network[node]['Signal'] |= {f'{signal}{direction}{side}':()}
-                                                                        
-    positions = {}
-    if visualization.Visualization[0].SpotElementProjection != None:
-        for i in visualization.Visualization[0].SpotElementProjection:
+    
+    if Visualization.Visualization[0].SpotElementProjection != None:
+        for i in Visualization.Visualization[0].SpotElementProjection:
             name = i.Name[0].Name
             ref = i.RefersToElement
-            if ref.startswith('bus') or name.startswith('Buf') or ref.startswith('oe') or ref.startswith('line') or ref.startswith('tde') or ref.startswith('lcr') or ref.startswith('plf') or ref.startswith('tvd') or ref.startswith('swi') or ref.startswith('dsw') or name.startswith('S'): 
+            if ref.startswith('bus') or name.startswith('Buf') or ref.startswith('oe') or ref.startswith('line') or ref.startswith('tde') or ref.startswith('lcr') or ref.startswith('plf') or ref.startswith('tvd') or ref.startswith('sw') or ref.startswith('dsw') or name.startswith('S'): 
                 x_pos = int(float(i.Coordinate[0].X)) if float(i.Coordinate[0].X).is_integer() else float(i.Coordinate[0].X)
                 y_pos = -int(float(i.Coordinate[0].Y))  if float(i.Coordinate[0].Y).is_integer() else -float(i.Coordinate[0].Y)
                 positions[name] = (int(x_pos),int(y_pos))
-                #print(f'-{ref} {name} {positions[name]}')
+                print(f'-{ref} {name} {positions[name]}')
 
     for x in positions:
         #print(f'{x} {positions[x]}')
@@ -757,6 +799,7 @@ def create_switches_pos(netElements):
             for switch in netElements[ne]['Switch']:
                 core = netElements[ne]['Switch'][switch]
                 switches_pos[switch] = [core]
+                print(f'{ne} {switch}')
                 line_key = next(key for key in netElements[ne] if key.startswith('line') and tuple(map(int, core)) in netElements[ne][key])
                 line = netElements[ne][line_key]
                 point_on_line = calculate_coordinate(core, line, 50)
@@ -807,7 +850,27 @@ def create_switches_pos(netElements):
                 
                 switches_pos[switch_x].append(point_on_line)
                 print(f'{switch_x} {switches_pos[switch_x]}')
+
+    for ne in netElements:
+        if 'Crossing' in netElements[ne]:
+            for crossing in netElements[ne]['Crossing']:
+
+                if crossing not in switches_pos:
+                    core = netElements[ne]['Crossing'][crossing]
+                    switches_pos[crossing] = [core]
+                else:
+                    core = switches_pos[crossing][0]
+
+                line_key = next(key for key in netElements[ne] if key.startswith('line') and tuple(map(int, core)) in netElements[ne][key])
+                line = netElements[ne][line_key]
+                point_on_line = calculate_coordinate(core, line, 50)
+
+                #print(f'{switch_x} -|- {core} -|- {ne} {line_key} {line} | {point_on_line}')
                 
+                switches_pos[crossing].append(point_on_line)
+                if len(switches_pos[crossing]) == 5:
+                    switches_pos[crossing][0] = (0,0)
+
     return switches_pos
 
 def draw_lines(canvas, network, switches_pos,width, height, netElement,switches,signal_routes,signals):
@@ -915,7 +978,12 @@ def draw_lines(canvas, network, switches_pos,width, height, netElement,switches,
                     print(f'----{key} {i}')
                     x,y = value[i]
                     switches[i] = Switch(canvas,width,height,switches_pos,i,switches)
-
+        if key.startswith('Crossing'):
+            for i in value:
+                if i in switches_pos and i not in switches:
+                    print(f'----{key} {i}')
+                    x,y = value[i]
+                    switches[i] = Switch(canvas,width,height,switches_pos,i,switches)
     return net_elements
 
 def bind_events(canvas, lines):
@@ -959,7 +1027,6 @@ def AGG(RML,routes,test = False):
         print(f'{netElement} {netElements[netElement]}')
 
     signal_routes = {}
-
     for route in routes:
         #print(f'R{route} {routes[route]}')
         start = 'S'+str(routes[route]['Start'][1:])
@@ -971,8 +1038,13 @@ def AGG(RML,routes,test = False):
     #for signal in signal_routes:
     #    print(f'{signal} {signal_routes[signal]}')
     
+    print('------')
     
-    switches_pos = create_switches_pos(netElements)
+    try:
+        switches_pos = create_switches_pos(netElements)
+    except Exception:
+        print("An error occurred:")
+        traceback.print_exc()
 
     print('------')
     #for switch in switches_pos:
