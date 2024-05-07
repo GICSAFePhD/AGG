@@ -3,51 +3,56 @@ import re
 import math
 import traceback
 
-class CanvasText:
-    def __init__(self, canvas, message, width, height):
+class DataFrame:
+    def __init__(self, window,canvas, netElements, width, height):
         self.canvas = canvas
-        self.text_id = canvas.create_text(width//2, height+100, text=message, anchor='s')
+        self.window = window
+        self.data = {}
+        self.text_id = None
+        self.width = width
+        self.height = height
 
-    def update_position(self, bottom_y):
-        # Get the IDs of all items on the canvas
-        item_ids = self.canvas.find_all()
+        for ne in netElements:
+            if 'Occupation' not in self.data:
+                self.data['Occupation'] = {}
+            self.data['Occupation'][ne] = 1
+        self.update_text()
 
-        # Initialize the leftmost and rightmost x-coordinates
-        left_x = float('inf')
-        right_x = float('-inf')
+    def __str__(self):
+        print(f'{self.data}')
+        self.frame = ''.join([str(value) for value in self.data['Occupation'].values()])
+        return f'{self.frame}'
 
-        # Iterate over all items
-        for item_id in item_ids:
-            # Get the bounding box of the item
-            bbox = self.canvas.bbox(item_id)
-
-            # Update the leftmost and rightmost x-coordinates
-            left_x = min(left_x, bbox[0])  # bbox[0] is the left x-coordinate
-            right_x = max(right_x, bbox[2])  # bbox[2] is the right x-coordinate
-
-        # Calculate the center x-coordinate
-        center_x = (left_x + right_x) // 2
-
-        # Update the position of the text
-        self.canvas.coords(self.text_id, center_x, bottom_y + 100)
+    def update_text(self):
+        frame = ''.join([str(value) for value in self.data['Occupation'].values()])
+        self.window.title(frame)
+      
 
 class NetElement:
-    def __init__(self, canvas, x1, y1, x2, y2, net_elements, net_element_key, color='black'):
+    def __init__(self, canvas,dataFrame,x1, y1, x2, y2, net_elements, net_element_key, color='black'):
         self.id = canvas.create_line(x1, y1, x2, y2, fill=color,width=3)
         self.pressed = False
         self.net_elements = net_elements
         self.net_element_key = net_element_key
+        self.dataFrame = dataFrame
         canvas.tag_bind(self.id, "<Button-1>", self.on_net_element_click)
 
     def on_net_element_click(self, event):
+        
         self.pressed = not self.pressed
         new_color = 'red' if self.pressed else 'black'
         for net_element in self.net_elements.values():
             event.widget.itemconfig(net_element.id, fill=new_color)
         if self.pressed:
             print(f'NetElement {self.net_element_key} is occupied')
+            self.dataFrame.data['Occupation'][self.net_element_key] = 0
+            print(self.dataFrame)
+            self.dataFrame.update_text()
         else:
             print(f'NetElement {self.net_element_key} is released')
+            self.dataFrame.data['Occupation'][self.net_element_key] = 1
+            print(self.dataFrame)
+            self.dataFrame.update_text()
 
 class BufferStop:
     def __init__(self, canvas, x, y, direction ,color='black'):
@@ -348,12 +353,12 @@ class Switch:
                 event.widget.itemconfig(self.ids[-2], fill='black')
                 event.widget.itemconfig(self.ids[-1], fill='white')
                 self.canvas.tag_raise(self.ids[-2])
-                print(f'Switch {self.switch_key} is reverse')
+                #print(f'Switch {self.switch_key} is reverse')
             else:
                 event.widget.itemconfig(self.ids[-2], fill='white')
                 event.widget.itemconfig(self.ids[-1], fill='black')
                 self.canvas.tag_raise(self.ids[-1])
-                print(f'Switch {self.switch_key} is normal')
+                #print(f'Switch {self.switch_key} is normal')
 
         if self.type == 'double':
             self.state = self.state + 1 if self.state < 3 else 0
@@ -799,7 +804,7 @@ def create_switches_pos(netElements):
             for switch in netElements[ne]['Switch']:
                 core = netElements[ne]['Switch'][switch]
                 switches_pos[switch] = [core]
-                print(f'{ne} {switch}')
+                #print(f'{ne} {switch}')
                 line_key = next(key for key in netElements[ne] if key.startswith('line') and tuple(map(int, core)) in netElements[ne][key])
                 line = netElements[ne][line_key]
                 point_on_line = calculate_coordinate(core, line, 50)
@@ -873,7 +878,7 @@ def create_switches_pos(netElements):
 
     return switches_pos
 
-def draw_lines(canvas, network, switches_pos,width, height, netElement,switches,signal_routes,signals):
+def draw_lines(canvas, dataFrame,network, switches_pos,width, height, netElement,switches,signal_routes,signals):
     def convert_coordinates(x, y):
         return x + width // 2, height // 2 - y
 
@@ -883,7 +888,7 @@ def draw_lines(canvas, network, switches_pos,width, height, netElement,switches,
     for key, value in network[netElement].items():
         if key.startswith('line'):
             x1y1, x2y2 = value
-            net_element = NetElement(canvas, *convert_coordinates(*x1y1), *convert_coordinates(*x2y2), net_elements, netElement)
+            net_element = NetElement(canvas,dataFrame, *convert_coordinates(*x1y1), *convert_coordinates(*x2y2), net_elements, netElement)
             net_elements[key] = net_element
         if key.startswith('BufferStop'):
             for i in value:
@@ -975,13 +980,13 @@ def draw_lines(canvas, network, switches_pos,width, height, netElement,switches,
         if key.startswith('Switch'):
             for i in value:
                 if i in switches_pos and i not in switches:
-                    print(f'----{key} {i}')
+                    #print(f'----{key} {i}')
                     x,y = value[i]
                     switches[i] = Switch(canvas,width,height,switches_pos,i,switches)
         if key.startswith('Crossing'):
             for i in value:
                 if i in switches_pos and i not in switches:
-                    print(f'----{key} {i}')
+                    #print(f'----{key} {i}')
                     x,y = value[i]
                     switches[i] = Switch(canvas,width,height,switches_pos,i,switches)
     return net_elements
@@ -1000,23 +1005,6 @@ def bind_events(canvas, lines):
     canvas.bind("<ButtonPress-1>", on_button_press)
     canvas.bind("<B1-Motion>", on_drag)
     canvas.bind("<MouseWheel>", on_zoom)
-
-def get_bottom_y_of_drawing(canvas):
-    # Get the IDs of all items on the canvas
-    item_ids = canvas.find_all()
-
-    # Initialize the bottom y-coordinate to negative infinity
-    bottom_y = float('-inf')
-
-    # Iterate over all items
-    for item_id in item_ids:
-        # Get the bounding box of the item
-        bbox = canvas.bbox(item_id)
-
-        # Update the bottom y-coordinate
-        bottom_y = max(bottom_y, bbox[3])  # bbox[3] is the bottom y-coordinate
-
-    return bottom_y
 
 def AGG(RML,routes,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
@@ -1038,15 +1026,8 @@ def AGG(RML,routes,test = False):
     #for signal in signal_routes:
     #    print(f'{signal} {signal_routes[signal]}')
     
-    print('------')
-    
-    try:
-        switches_pos = create_switches_pos(netElements)
-    except Exception:
-        print("An error occurred:")
-        traceback.print_exc()
+    switches_pos = create_switches_pos(netElements)
 
-    print('------')
     #for switch in switches_pos:
     #    print(f'{switch} {switches_pos[switch]}')
 
@@ -1063,8 +1044,10 @@ def AGG(RML,routes,test = False):
     switches = {}
     signals = {}
 
+    dataFrame = DataFrame(window,canvas, netElements, width, height)
+
     for netElement in netElements:
-        lines_plot = draw_lines(canvas, netElements, switches_pos, width, height,netElement,switches,signal_routes,signals)
+        lines_plot = draw_lines(canvas, dataFrame,netElements, switches_pos, width, height,netElement,switches,signal_routes,signals)
         bind_events(canvas, lines_plot)
 
     # Update the window to make sure all widgets are drawn before we get the bounding box
@@ -1083,13 +1066,6 @@ def AGG(RML,routes,test = False):
 
     # Move all items on the canvas to center the bounding box
     canvas.move("all", dx, dy)
-
-    # Create a CanvasText object
-    message = "Initial message"
-    canvas_text = CanvasText(canvas, message, width, height)
-
-    bottom_y = get_bottom_y_of_drawing(canvas)
-    canvas_text.update_position(bottom_y)
 
     # Update the window again to reflect the changes
     window.update_idletasks()
