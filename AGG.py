@@ -4,7 +4,7 @@ import math
 import traceback
 
 class DataFrame:
-    def __init__(self, window,canvas, netElements, width, height):
+    def __init__(self, window,canvas, netElements, routes, width, height):
         self.canvas = canvas
         self.window = window
         self.data = {}
@@ -16,16 +16,31 @@ class DataFrame:
             if 'Occupation' not in self.data:
                 self.data['Occupation'] = {}
             self.data['Occupation'][ne] = 1
+
+        for route in routes:
+            if 'Routes' not in self.data:
+                self.data['Routes'] = {}
+            self.data['Routes'][f'R{route}'] = 1
+
+        self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
+        self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
+
+        self.frame =  f'{self.occupationFrame}|{self.routeFrame}'
+
         self.update_text()
 
     def __str__(self):
         print(f'{self.data}')
-        self.frame = ''.join([str(value) for value in self.data['Occupation'].values()])
+        
         return f'{self.frame}'
 
     def update_text(self):
-        frame = ''.join([str(value) for value in self.data['Occupation'].values()])
-        self.window.title(frame)
+        self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
+        self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
+
+        self.frame =  f'{self.occupationFrame}|{self.routeFrame}'
+
+        self.window.title(self.frame)
       
 
 class NetElement:
@@ -126,7 +141,7 @@ class Border:
         canvas.create_line(x+sign*15, y, x+sign*20, y, fill=color,width=3)
 
 class Signals:
-    def __init__(self, canvas, x, y ,name,way,net_coordinate = None,other_signals=None ,signals = None, color='grey' ):
+    def __init__(self, canvas,dataFrame, x, y ,name,way,net_coordinate = None,other_signals=None ,signals = None, color='grey' ):
         #self.id = None
         font_size = 8
         self.pressed = False
@@ -135,6 +150,8 @@ class Signals:
         self.color = color
         self.other_signals = tuple(other_signals.keys()) if other_signals else ()
         self.routes = other_signals if other_signals else {}
+        self.dataFrame = dataFrame
+
         # next_signals = tuple(signal_routes[name].keys())
 
         direction = name[-2]
@@ -223,7 +240,12 @@ class Signals:
                             signal.canvas.tag_unbind(signal.id, "<Button-1>")
                 case 'green':
                     if signal_name == self.name:
-                        print(f'Signal {self.name} is released')
+                        routes = list(signal.routes.values())
+                        print(f'Signal {self.name} is released [{routes}]')
+                        
+                        for route in routes:
+                            self.dataFrame.data['Routes'][route] = 1
+                        self.dataFrame.update_text()
                         color = 'grey'
                         self.canvas.itemconfig(self.id, fill=color)
                     if signal_name in self.other_signals:
@@ -242,7 +264,10 @@ class Signals:
                     else:
                         color = 'grey'
                         if signal.color == 'green':
-                            print(f'Route {signal.routes[self.name]} launched')
+                            route = signal.routes[self.name]
+                            print(f'Route {route} {route[1:]} launched')
+                            self.dataFrame.data['Routes'][route] = 0
+                            self.dataFrame.update_text()
                         signal.color = 'grey'
                         signal.canvas.itemconfig(signal.id, fill=signal.color)
                         signal.canvas.tag_bind(signal.id, "<Button-1>", signal.on_signal_click)
@@ -694,7 +719,7 @@ def get_netElements(RML):
                 x_pos = int(float(i.Coordinate[0].X)) if float(i.Coordinate[0].X).is_integer() else float(i.Coordinate[0].X)
                 y_pos = -int(float(i.Coordinate[0].Y))  if float(i.Coordinate[0].Y).is_integer() else -float(i.Coordinate[0].Y)
                 positions[name] = (int(x_pos),int(y_pos))
-                print(f'-{ref} {name} {positions[name]}')
+                #print(f'-{ref} {name} {positions[name]}')
 
     for x in positions:
         #print(f'{x} {positions[x]}')
@@ -976,7 +1001,7 @@ def draw_lines(canvas, dataFrame,network, switches_pos,width, height, netElement
                 if name in signal_routes:
                     next_signals = signal_routes[name]
                     #print(next_signals)
-                signals[name] = Signals(canvas, *convert_coordinates(x, y),i,way,net_coordinate, other_signals = next_signals,signals = signals)
+                signals[name] = Signals(canvas,dataFrame, *convert_coordinates(x, y),i,way,net_coordinate, other_signals = next_signals,signals = signals)
         if key.startswith('Switch'):
             for i in value:
                 if i in switches_pos and i not in switches:
@@ -1023,8 +1048,8 @@ def AGG(RML,routes,test = False):
             signal_routes[start] = {}
         signal_routes[start] |= {end:f'R{route}'}
 
-    #for signal in signal_routes:
-    #    print(f'{signal} {signal_routes[signal]}')
+    for signal in signal_routes:
+        print(f'{signal} {signal_routes[signal]}')
     
     switches_pos = create_switches_pos(netElements)
 
@@ -1044,7 +1069,7 @@ def AGG(RML,routes,test = False):
     switches = {}
     signals = {}
 
-    dataFrame = DataFrame(window,canvas, netElements, width, height)
+    dataFrame = DataFrame(window,canvas, netElements, routes, width, height)
 
     for netElement in netElements:
         lines_plot = draw_lines(canvas, dataFrame,netElements, switches_pos, width, height,netElement,switches,signal_routes,signals)
