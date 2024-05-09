@@ -1,10 +1,26 @@
 import tkinter as tk
 import re
 import math
-import traceback
+import serial
+
+class SerialComm:
+    def __init__(self, port, baudrate=115200):
+        self.ser = serial.Serial(port, baudrate)
+        self.data = None
+
+    def read(self):
+        if self.ser.in_waiting > 0:
+            self.data = self.ser.readline().decode('utf-8').strip()
+            return self.data
+
+    def write(self, message):
+        self.ser.write(message.encode('utf-8'))
+
+    def close(self):
+        self.ser.close()
 
 class DataFrame:
-    def __init__(self, window,canvas, netElements, routes, width, height):
+    def __init__(self, window,canvas, network, routes, width, height):
         self.canvas = canvas
         self.window = window
         self.data = {}
@@ -12,7 +28,7 @@ class DataFrame:
         self.width = width
         self.height = height
 
-        for ne in netElements:
+        for ne in network:
             if 'Occupation' not in self.data:
                 self.data['Occupation'] = {}
             self.data['Occupation'][ne] = 1
@@ -22,10 +38,20 @@ class DataFrame:
                 self.data['Routes'] = {}
             self.data['Routes'][f'R{route}'] = 1
 
+        for ne in network:
+            if 'LevelCrossing' not in self.data:
+                self.data['LevelCrossing'] = {}
+
+            if 'LevelCrossing' in network[ne]:
+                for levelCrossing in network[ne]['LevelCrossing']:
+                    self.data['LevelCrossing'][levelCrossing] = 1
+
+
         self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
         self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
+        self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
 
-        self.frame =  f'{self.occupationFrame}|{self.routeFrame}'
+        self.frame =  f'{self.occupationFrame}|{self.routeFrame}|{self.levelCrossingFrame}'
 
         self.update_text()
 
@@ -37,8 +63,9 @@ class DataFrame:
     def update_text(self):
         self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
         self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
+        self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
 
-        self.frame =  f'{self.occupationFrame}|{self.routeFrame}'
+        self.frame =  f'{self.occupationFrame}|{self.routeFrame}|{self.levelCrossingFrame}'
 
         self.window.title(self.frame)
       
@@ -103,10 +130,12 @@ class Platform:
             canvas.create_line(x-75, y+30, x+75, y+30, fill=color,width=3)
 
 class LevelCrossing:
-    def __init__(self, canvas, x, y ,levelCrossings,levelCrossing_key,color='blue'):
+    def __init__(self, canvas,dataFrame, x, y ,levelCrossings,levelCrossing_key,color='blue'):
         self.pressed = False
         self.levelCrossings = levelCrossings
         self.levelCrossing_key = levelCrossing_key
+        self.dataFrame = dataFrame
+        self.canvas = canvas
 
         # Create lines and store their ids
         self.ids = [
@@ -120,18 +149,28 @@ class LevelCrossing:
 
         # Bind the click event to all lines
         for id in self.ids:
-            canvas.tag_bind(id, "<Button-1>", self.on_net_element_click)
+            self.canvas.tag_bind(id, "<Button-1>", self.on_net_element_click)
+
+    def update_draw(self):
+        new_color = 'red' if self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] == 0 else 'blue'
+        for id in self.ids:
+            self.canvas.itemconfig(id, fill=new_color)
 
     def on_net_element_click(self, event):
         self.pressed = not self.pressed
-        new_color = 'red' if self.pressed else 'blue'
-        #for levelCrossing in self.levelCrossings.values():
-        for id in self.ids:
-            event.widget.itemconfig(id, fill=new_color)
+        #new_color = 'red' if self.pressed else 'blue'
+        #for id in self.ids:
+        #    event.widget.itemconfig(id, fill=new_color)
         if self.pressed:
             print(f'LevelCrossing {self.levelCrossing_key} is closed')
+            self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] = 0
+            self.dataFrame.update_text()
+            self.update_draw()
         else:
             print(f'LevelCrossing {self.levelCrossing_key} is open')
+            self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] = 1
+            self.dataFrame.update_text()
+            self.update_draw()
 
 class Border:
     def __init__(self, canvas, x, y, direction ,color='black'):
@@ -965,7 +1004,7 @@ def draw_lines(canvas, dataFrame,network, switches_pos,width, height, netElement
         if key.startswith('LevelCrossing'):
             for i in value:
                 x,y = value[i]
-                levelCrossing = LevelCrossing(canvas, *convert_coordinates(x, y), levelCrossings,i)
+                levelCrossing = LevelCrossing(canvas,dataFrame, *convert_coordinates(x, y), levelCrossings,i)
                 levelCrossings[key] = levelCrossing       
         if key.startswith('Signal'):
             for i in value:
@@ -1097,4 +1136,29 @@ def AGG(RML,routes,test = False):
 
     # Add a protocol for when the window is closed
     window.protocol("WM_DELETE_WINDOW", window.destroy)
+
+    # Create an instance of SerialComm
+    serialComm = SerialComm('COM1',115200)  # Replace 'COMx' with your actual COM port
+
+    # Main loop for tkinter
+    while True:
+        window.update_idletasks()
+        window.update()
+
+        # Read data from the serial port
+        data = serialComm.read()
+        if data is not None:
+            print(f"Received data: {data}")
+
+        # Write data to the serial port
+        message = input("Enter a message to send: ")
+        serialComm.write(message)
+
+
+
+
+
+
+
+
     window.mainloop()
