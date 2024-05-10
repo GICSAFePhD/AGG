@@ -69,7 +69,6 @@ class DataFrame:
 
         self.window.title(self.frame)
       
-
 class NetElement:
     def __init__(self, canvas,dataFrame,x1, y1, x2, y2, net_elements, net_element_key, color='black'):
         self.id = canvas.create_line(x1, y1, x2, y2, fill=color,width=3)
@@ -150,12 +149,15 @@ class LevelCrossing:
         # Bind the click event to all lines
         for id in self.ids:
             self.canvas.tag_bind(id, "<Button-1>", self.on_net_element_click)
+        self.update_draw()
 
     def update_draw(self):
+        print(self.dataFrame.data['LevelCrossing'])
         new_color = 'red' if self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] == 0 else 'blue'
         for id in self.ids:
             self.canvas.itemconfig(id, fill=new_color)
-
+        self.canvas.after(100, self.update_draw)
+        
     def on_net_element_click(self, event):
         self.pressed = not self.pressed
         #new_color = 'red' if self.pressed else 'blue'
@@ -1138,7 +1140,7 @@ def AGG(RML,routes,test = False):
     window.protocol("WM_DELETE_WINDOW", window.destroy)
 
     # Create an instance of SerialComm
-    serialComm = SerialComm('COM1',115200)  # Replace 'COMx' with your actual COM port
+    serialComm = SerialComm('COM5',115200)  # Replace 'COMx' with your actual COM port
 
     # Main loop for tkinter
     while True:
@@ -1150,9 +1152,13 @@ def AGG(RML,routes,test = False):
         if data is not None:
             print(f"Received data: {data}")
 
+            for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
+                dataFrame.data['LevelCrossing'][lc_key] = int(data[lc_index])
+            dataFrame.update_text()
+
         # Write data to the serial port
-        message = input("Enter a message to send: ")
-        serialComm.write(message)
+        #message = input("Enter a message to send: ")
+        #serialComm.write(message)
 
 
 
