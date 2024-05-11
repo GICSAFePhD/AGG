@@ -39,19 +39,33 @@ class DataFrame:
             self.data['Routes'][f'R{route}'] = 1
 
         for ne in network:
-            if 'LevelCrossing' not in self.data:
-                self.data['LevelCrossing'] = {}
+
+            if 'Signal' in network[ne]:
+                if 'Signal' not in self.data:
+                    self.data['Signal'] = {}
+                for signal in network[ne]['Signal']:
+                    self.data['Signal'][signal] = 0
 
             if 'LevelCrossing' in network[ne]:
+                if 'LevelCrossing' not in self.data:
+                    self.data['LevelCrossing'] = {}
                 for levelCrossing in network[ne]['LevelCrossing']:
-                    self.data['LevelCrossing'][levelCrossing] = 1
+                    self.data['LevelCrossing'][levelCrossing] = 0
+
+            if 'Switch' in network[ne]:
+                if 'Switch' not in self.data:
+                    self.data['Switch'] = {}
+                for levelCrossing in network[ne]['Switch']:
+                    self.data['Switch'][levelCrossing] = 0
 
 
         self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
         self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
+        self.signalFrame = ''.join([format(value, '02b') for value in self.data['Signal'].values()])
         self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
+        self.switchFrame = ''.join([str(value) for value in self.data['Switch'].values()])
 
-        self.frame =  f'{self.occupationFrame}|{self.routeFrame}|{self.levelCrossingFrame}'
+        self.frame =  f'{self.occupationFrame}|{self.routeFrame}|{self.signalFrame}|{self.levelCrossingFrame}|{self.switchFrame}'
 
         self.update_text()
 
@@ -63,9 +77,11 @@ class DataFrame:
     def update_text(self):
         self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
         self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
+        self.signalFrame = ''.join([format(value, '02b') for value in self.data['Signal'].values()])
         self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
+        self.switchFrame = ''.join([str(value) for value in self.data['Switch'].values()])
 
-        self.frame =  f'{self.occupationFrame}|{self.routeFrame}|{self.levelCrossingFrame}'
+        self.frame =  f'{self.occupationFrame}|{self.routeFrame}|{self.signalFrame}|{self.levelCrossingFrame}|{self.switchFrame}'
 
         self.window.title(self.frame)
       
@@ -152,7 +168,7 @@ class LevelCrossing:
         self.update_draw()
 
     def update_draw(self):
-        print(self.dataFrame.data['LevelCrossing'])
+        #print(self.dataFrame.data['LevelCrossing'])
         new_color = 'red' if self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] == 0 else 'blue'
         for id in self.ids:
             self.canvas.itemconfig(id, fill=new_color)
@@ -160,9 +176,6 @@ class LevelCrossing:
         
     def on_net_element_click(self, event):
         self.pressed = not self.pressed
-        #new_color = 'red' if self.pressed else 'blue'
-        #for id in self.ids:
-        #    event.widget.itemconfig(id, fill=new_color)
         if self.pressed:
             print(f'LevelCrossing {self.levelCrossing_key} is closed')
             self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] = 0
@@ -192,7 +205,7 @@ class Signals:
         self.other_signals = tuple(other_signals.keys()) if other_signals else ()
         self.routes = other_signals if other_signals else {}
         self.dataFrame = dataFrame
-
+        self.signal_key = name
         # next_signals = tuple(signal_routes[name].keys())
 
         direction = name[-2]
@@ -229,34 +242,62 @@ class Signals:
             y0 = y0 if way == '>' else -y0
 
             self.id = canvas.create_text(x,y-(y0*55),text=name[:-2],fill=color,font=font_size)
-            canvas.create_line(x, (y-y0*30), (x-x0*25), (y-y0*30), fill=color,width=3)
-            canvas.create_line(x, (y-y0*30)+10, x, (y-y0*30)-10, fill=color,width=3)
-            canvas.create_oval((x-x0*40)-r,(y-y0*30)-r,(x-x0*40)+r,(y-y0*30)+r,outline=color,width=3)
+            self.semaphore = [ 
+                canvas.create_line(x, (y-y0*30), (x-x0*25), (y-y0*30), fill=color,width=3),
+                canvas.create_line(x, (y-y0*30)+10, x, (y-y0*30)-10, fill=color,width=3),
+                canvas.create_oval((x-x0*40)-r,(y-y0*30)-r,(x-x0*40)+r,(y-y0*30)+r,outline=color,width=3)
+            ]
+
         else:
             x0 = 0
             y0 = 0
             if slope == 'up' and way == '>':
                 #color = 'orange'
                 self.id =  canvas.create_text(x+70, y+25, text=name, fill=color, font=font_size)
-                canvas.create_line(x+30, y+9, x+49, y-14, fill=color,width=3)
-                canvas.create_line(x+60, y-5, x+38, y-22, fill=color,width=3)
-                canvas.create_oval((x+20)-r, (y+20)-r, (x+20)+r, (y+20)+r, outline=color, width=3)
+                self.semaphore = [ 
+                    canvas.create_line(x+30, y+9, x+49, y-14, fill=color,width=3),
+                    canvas.create_line(x+60, y-5, x+38, y-22, fill=color,width=3),
+                    canvas.create_oval((x+20)-r, (y+20)-r, (x+20)+r, (y+20)+r, outline=color, width=3)
+                ]
             if slope == 'up' and way == '<':
                 color = 'grey'
             if slope == 'down' and way == '>':
                 #color = 'pink'
                 self.id =  canvas.create_text(x+100, y-25, text=name, fill=color, font=font_size)
-                canvas.create_line(x+82, y+8, x+55, y-16, fill=color,width=3)
-                canvas.create_line(x+45, y-5, x+65, y-25, fill=color,width=3)
-                canvas.create_oval((x+90)-r, (y+20)-r, (x+90)+r, (y+20)+r, outline=color, width=3)
+                self.semaphore = [ 
+                    canvas.create_line(x+82, y+8, x+55, y-16, fill=color,width=3),
+                    canvas.create_line(x+45, y-5, x+65, y-25, fill=color,width=3),
+                    canvas.create_oval((x+90)-r, (y+20)-r, (x+90)+r, (y+20)+r, outline=color, width=3)
+                ]
             if slope == 'down' and way == '<':
                 #color = 'cyan'
                 self.id = canvas.create_text(x-100, y+45, text=name, fill=color, font=font_size)
-                canvas.create_line(x-55, y+35, x-79, y+10, fill=color,width=3)
-                canvas.create_line(x-65, y+35+10, x-45, y+35-10, fill=color,width=3)
-                canvas.create_oval((x-90)-r, y-r, (x-90)+r, y+r, outline=color, width=3)
-
+                self.semaphore = [ 
+                    canvas.create_line(x-55, y+35, x-79, y+10, fill=color,width=3),
+                    canvas.create_line(x-65, y+35+10, x-45, y+35-10, fill=color,width=3),
+                    canvas.create_oval((x-90)-r, y-r, (x-90)+r, y+r, outline=color, width=3)
+                ]
         canvas.tag_bind(self.id, "<Button-1>", self.on_signal_click)
+        self.update_draw()
+
+    def update_draw(self):
+        #print(self.dataFrame.data['Signal'][self.signal_key])
+
+        match self.dataFrame.data['Signal'][self.signal_key]:
+                case 0:
+                    color = 'red'
+                case 1:
+                    color = 'orange'
+                case 2:
+                    color = 'blue'
+                case 3:
+                    color = 'green'
+
+        self.canvas.itemconfig(self.semaphore[-3], fill=color)
+        self.canvas.itemconfig(self.semaphore[-2], fill=color)
+        self.canvas.itemconfig(self.semaphore[-1], fill=color,outline=color)
+
+        self.canvas.after(100, self.update_draw)
 
     def on_signal_click(self, event):
         self.pressed = not self.pressed
@@ -319,11 +360,13 @@ class Signals:
         self.color = color
             
 class Switch:
-    def __init__(self, canvas, width,height, switches_pos, switch_key,switches, color='black'):
+    def __init__(self, canvas,dataFrame, width,height, switches_pos, switch_key,switches, color='black'):
         r = 15
         self.pressed = False
         self.switches = switches
         self.switch_key = switch_key
+        self.dataFrame = dataFrame
+        self.canvas = canvas
         self.width = width
         self.height = height
 
@@ -411,21 +454,47 @@ class Switch:
             # Bind the click event to all lines
             for id in self.ids:
                 canvas.tag_bind(id, "<Button-1>", self.switch_position)
+
+        self.update_draw()
+
+    def update_draw(self):
+        #print(self.dataFrame.data['Switch'])
+        if self.type == 'simple':
+
+            normal_color = 'black' if self.dataFrame.data['Switch'][self.switch_key] == 0 else 'white'
+            reverse_color = 'white' if normal_color == 'black' else 'black'
+            index = -2 if self.dataFrame.data['Switch'][self.switch_key] == 0 else -1
+
+
+            self.canvas.itemconfig(self.ids[-2], fill=normal_color)
+            self.canvas.itemconfig(self.ids[-1], fill=reverse_color)
+            self.canvas.tag_raise(self.ids[index])
+            
+        self.canvas.after(100, self.update_draw)
             
     def switch_position(self, event):
         if self.type == 'simple':
             self.pressed = not self.pressed
             if self.pressed:
+                #print(f'Switch {self.switch_key} is reverse')
+                self.dataFrame.data['Switch'][self.switch_key] = 1
+                self.dataFrame.update_text()
+                self.update_draw()
+
                 event.widget.itemconfig(self.ids[-2], fill='black')
                 event.widget.itemconfig(self.ids[-1], fill='white')
                 self.canvas.tag_raise(self.ids[-2])
-                #print(f'Switch {self.switch_key} is reverse')
+                
             else:
+                #print(f'Switch {self.switch_key} is normal')
+                self.dataFrame.data['Switch'][self.switch_key] = 0
+                self.dataFrame.update_text()
+                self.update_draw()
+
                 event.widget.itemconfig(self.ids[-2], fill='white')
                 event.widget.itemconfig(self.ids[-1], fill='black')
                 self.canvas.tag_raise(self.ids[-1])
-                #print(f'Switch {self.switch_key} is normal')
-
+                
         if self.type == 'double':
             self.state = self.state + 1 if self.state < 3 else 0
 
@@ -1048,13 +1117,13 @@ def draw_lines(canvas, dataFrame,network, switches_pos,width, height, netElement
                 if i in switches_pos and i not in switches:
                     #print(f'----{key} {i}')
                     x,y = value[i]
-                    switches[i] = Switch(canvas,width,height,switches_pos,i,switches)
+                    switches[i] = Switch(canvas,dataFrame,width,height,switches_pos,i,switches)
         if key.startswith('Crossing'):
             for i in value:
                 if i in switches_pos and i not in switches:
                     #print(f'----{key} {i}')
                     x,y = value[i]
-                    switches[i] = Switch(canvas,width,height,switches_pos,i,switches)
+                    switches[i] = Switch(canvas,dataFrame,width,height,switches_pos,i,switches)
     return net_elements
 
 def bind_events(canvas, lines):
@@ -1072,7 +1141,28 @@ def bind_events(canvas, lines):
     canvas.bind("<B1-Motion>", on_drag)
     canvas.bind("<MouseWheel>", on_zoom)
 
-def AGG(RML,routes,test = False):
+def split_data(input_string, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
+    # Remove the angle brackets from the input string
+    data_string = input_string[1:-1]
+
+    # Calculate the starting index for each variable
+    start_signals = n_routes
+    start_levelCrossings = start_signals + 2*n_signals
+    start_switches = start_levelCrossings + n_levelCrossings
+    start_doubleSwitch = start_switches + n_switches
+    start_scissorCrossings = start_doubleSwitch + n_doubleSwitch
+
+    # Split the data string into the variables
+    data_routes = data_string[:n_routes]
+    data_signals = data_string[start_signals:start_levelCrossings]
+    data_levelCrossings = data_string[start_levelCrossings:start_switches]
+    data_switches = data_string[start_switches:start_doubleSwitch]
+    data_doubleSwitch = data_string[start_doubleSwitch:start_scissorCrossings]
+    data_scissorCrossings = data_string[start_scissorCrossings:]
+
+    return data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings
+
+def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
     print("Reading railML object")
     netElements = get_netElements(RML)
@@ -1089,8 +1179,8 @@ def AGG(RML,routes,test = False):
             signal_routes[start] = {}
         signal_routes[start] |= {end:f'R{route}'}
 
-    for signal in signal_routes:
-        print(f'{signal} {signal_routes[signal]}')
+    #for signal in signal_routes:
+    #    print(f'{signal} {signal_routes[signal]}')
     
     switches_pos = create_switches_pos(netElements)
 
@@ -1140,7 +1230,20 @@ def AGG(RML,routes,test = False):
     window.protocol("WM_DELETE_WINDOW", window.destroy)
 
     # Create an instance of SerialComm
-    serialComm = SerialComm('COM5',115200)  # Replace 'COMx' with your actual COM port
+    serialComm = SerialComm('COM6',115200)  # Replace 'COMx' with your actual COM port
+
+    print(parameters)
+
+    N                       = parameters[0]
+    M                       = parameters[1]
+    n_netElements           = parameters[2]
+    n_routes                = parameters[3]
+    n_signals               = parameters[4]
+    n_levelCrossings        = parameters[5]
+    n_switches              = parameters[6]
+    n_doubleSwitch          = parameters[7]
+    n_scissorCrossings      = parameters[8]
+
 
     # Main loop for tkinter
     while True:
@@ -1150,21 +1253,29 @@ def AGG(RML,routes,test = False):
         # Read data from the serial port
         data = serialComm.read()
         if data is not None:
-            print(f"Received data: {data}")
+            print(f"Received data:{data}")
+            data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(data, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
-            for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
-                dataFrame.data['LevelCrossing'][lc_key] = int(data[lc_index])
+            print(f'Received data:{data_routes}|{data_signals}|{data_levelCrossings}|{data_switches}|{data_doubleSwitch}|{data_scissorCrossings}')
+
+            if n_signals > 0 :
+                for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
+                    start = sig_index * 2
+                    chunk = data_signals[start:start+2]
+                    dataFrame.data['Signal'][sig_key] = int(chunk, 2)
+
+            if n_levelCrossings > 0 :
+                for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
+                    dataFrame.data['LevelCrossing'][lc_key] = int(data_levelCrossings[lc_index])
+
+            if n_switches > 0:
+                for sw_index,sw_key in enumerate(dataFrame.data['Switch'].keys()):
+                    dataFrame.data['Switch'][sw_key] = int(data_switches[sw_index])
+            
             dataFrame.update_text()
 
         # Write data to the serial port
         #message = input("Enter a message to send: ")
         #serialComm.write(message)
-
-
-
-
-
-
-
-
+    
     window.mainloop()
