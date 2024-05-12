@@ -2,19 +2,34 @@ import tkinter as tk
 import re
 import math
 import serial
+import time
 
 class SerialComm:
-    def __init__(self, port, baudrate=115200):
+    def __init__(self, port, baudrate=19200):
         self.ser = serial.Serial(port, baudrate)
+        self.ser.port = port
+        self.ser.baudrate = baudrate
+        self.ser.bytesize = serial.EIGHTBITS    # number of bits per bytes # SEVENBITS
+        self.ser.parity = serial.PARITY_NONE    # set parity check: no parity # PARITY_ODD
+        self.ser.stopbits = serial.STOPBITS_ONE # number of stop bits # STOPBITS_TWO
+        #self.ser.timeout = None                 # block read
+        self.ser.timeout = 1                    # non-block read
+        #self.ser.timeout = 2                    # timeout block read
+        self.ser.xonxoff = False                # disable software flow control
+        self.ser.rtscts = False                 # disable hardware (RTS/CTS) flow control
+        self.ser.dsrdtr = False                 # disable hardware (DSR/DTR) flow control
+        self.ser.writeTimeout = 2               # timeout for write
+        
         self.data = None
 
     def read(self):
         if self.ser.in_waiting > 0:
-            self.data = self.ser.readline().decode('utf-8').strip()
+            self.data = self.ser.readline().decode('ascii')
             return self.data
 
     def write(self, message):
-        self.ser.write(message.encode('utf-8'))
+        self.ser.write(message.encode())
+        #time.sleep(0.1)
 
     def close(self):
         self.ser.close()
@@ -27,6 +42,7 @@ class DataFrame:
         self.text_id = None
         self.width = width
         self.height = height
+        self.sent = ""
 
         for ne in network:
             if 'Occupation' not in self.data:
@@ -36,7 +52,7 @@ class DataFrame:
         for route in routes:
             if 'Routes' not in self.data:
                 self.data['Routes'] = {}
-            self.data['Routes'][f'R{route}'] = 1
+            self.data['Routes'][f'R{route}'] = 0
 
         for ne in network:
 
@@ -50,7 +66,7 @@ class DataFrame:
                 if 'LevelCrossing' not in self.data:
                     self.data['LevelCrossing'] = {}
                 for levelCrossing in network[ne]['LevelCrossing']:
-                    self.data['LevelCrossing'][levelCrossing] = 0
+                    self.data['LevelCrossing'][levelCrossing] = 1
 
             if 'Switch' in network[ne]:
                 if 'Switch' not in self.data:
@@ -81,8 +97,9 @@ class DataFrame:
         self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
         self.switchFrame = ''.join([str(value) for value in self.data['Switch'].values()])
 
-        self.frame =  f'{self.occupationFrame}|{self.routeFrame}|{self.signalFrame}|{self.levelCrossingFrame}|{self.switchFrame}'
-
+        self.frame =  f'<{self.occupationFrame}|{self.routeFrame}|{self.signalFrame}|{self.levelCrossingFrame}|{self.switchFrame}>'
+        self.message = f'<{self.occupationFrame}{self.routeFrame}{self.signalFrame}{self.levelCrossingFrame}{self.switchFrame}>'
+        
         self.window.title(self.frame)
       
 class NetElement:
@@ -101,14 +118,14 @@ class NetElement:
         for net_element in self.net_elements.values():
             event.widget.itemconfig(net_element.id, fill=new_color)
         if self.pressed:
-            print(f'NetElement {self.net_element_key} is occupied')
+            #print(f'NetElement {self.net_element_key} is occupied')
             self.dataFrame.data['Occupation'][self.net_element_key] = 0
-            print(self.dataFrame)
+            #print(self.dataFrame)
             self.dataFrame.update_text()
         else:
-            print(f'NetElement {self.net_element_key} is released')
+            #print(f'NetElement {self.net_element_key} is released')
             self.dataFrame.data['Occupation'][self.net_element_key] = 1
-            print(self.dataFrame)
+            #print(self.dataFrame)
             self.dataFrame.update_text()
 
 class BufferStop:
@@ -177,12 +194,12 @@ class LevelCrossing:
     def on_net_element_click(self, event):
         self.pressed = not self.pressed
         if self.pressed:
-            print(f'LevelCrossing {self.levelCrossing_key} is closed')
+            #print(f'LevelCrossing {self.levelCrossing_key} is closed')
             self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] = 0
             self.dataFrame.update_text()
             self.update_draw()
         else:
-            print(f'LevelCrossing {self.levelCrossing_key} is open')
+            #print(f'LevelCrossing {self.levelCrossing_key} is open')
             self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] = 1
             self.dataFrame.update_text()
             self.update_draw()
@@ -289,7 +306,7 @@ class Signals:
                 case 1:
                     color = 'orange'
                 case 2:
-                    color = 'blue'
+                    color = 'yellow'
                 case 3:
                     color = 'green'
 
@@ -463,11 +480,11 @@ class Switch:
 
             normal_color = 'black' if self.dataFrame.data['Switch'][self.switch_key] == 0 else 'white'
             reverse_color = 'white' if normal_color == 'black' else 'black'
-            index = -2 if self.dataFrame.data['Switch'][self.switch_key] == 0 else -1
+            index = -1 if self.dataFrame.data['Switch'][self.switch_key] == 0 else -2
 
 
-            self.canvas.itemconfig(self.ids[-2], fill=normal_color)
-            self.canvas.itemconfig(self.ids[-1], fill=reverse_color)
+            self.canvas.itemconfig(self.ids[-2], fill=reverse_color)
+            self.canvas.itemconfig(self.ids[-1], fill=normal_color)
             self.canvas.tag_raise(self.ids[index])
             
         self.canvas.after(100, self.update_draw)
@@ -481,9 +498,9 @@ class Switch:
                 self.dataFrame.update_text()
                 self.update_draw()
 
-                event.widget.itemconfig(self.ids[-2], fill='black')
-                event.widget.itemconfig(self.ids[-1], fill='white')
-                self.canvas.tag_raise(self.ids[-2])
+                #event.widget.itemconfig(self.ids[-2], fill='white')
+                #event.widget.itemconfig(self.ids[-1], fill='black')
+                #self.canvas.tag_raise(self.ids[-1])
                 
             else:
                 #print(f'Switch {self.switch_key} is normal')
@@ -491,9 +508,10 @@ class Switch:
                 self.dataFrame.update_text()
                 self.update_draw()
 
-                event.widget.itemconfig(self.ids[-2], fill='white')
-                event.widget.itemconfig(self.ids[-1], fill='black')
-                self.canvas.tag_raise(self.ids[-1])
+                
+                #event.widget.itemconfig(self.ids[-2], fill='black')
+                #event.widget.itemconfig(self.ids[-1], fill='white')
+                #self.canvas.tag_raise(self.ids[-2])
                 
         if self.type == 'double':
             self.state = self.state + 1 if self.state < 3 else 0
@@ -1143,7 +1161,7 @@ def bind_events(canvas, lines):
 
 def split_data(input_string, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
     # Remove the angle brackets from the input string
-    data_string = input_string[1:-1]
+    data_string = input_string#[1:-1]
 
     # Calculate the starting index for each variable
     start_signals = n_routes
@@ -1161,6 +1179,42 @@ def split_data(input_string, n_routes, n_signals, n_levelCrossings, n_switches, 
     data_scissorCrossings = data_string[start_scissorCrossings:]
 
     return data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings
+
+def read_and_write_data(window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
+    # Read data from the serial port
+
+    if dataFrame.message != dataFrame.sent:
+        dataFrame.sent = dataFrame.message
+
+        message = dataFrame.message
+        print(f'>>> {message}')
+        serialComm.write(message)
+
+
+    data = serialComm.read()
+    if data is not None:
+        print(f"<<< {data}")
+        
+        data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(data, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+
+        if n_signals > 0 :
+            for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
+                start = sig_index * 2
+                chunk = data_signals[start:start+2]
+                dataFrame.data['Signal'][sig_key] = int(chunk, 2)
+
+        if n_levelCrossings > 0 :
+            for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
+                dataFrame.data['LevelCrossing'][lc_key] = int(data_levelCrossings[lc_index])
+
+        if n_switches > 0:
+            for sw_index,sw_key in enumerate(dataFrame.data['Switch'].keys()):
+                dataFrame.data['Switch'][sw_key] = int(data_switches[sw_index])
+        
+        dataFrame.update_text()
+    
+    # Schedule the function to be called again after 100ms
+    window.after(10, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
@@ -1230,9 +1284,9 @@ def AGG(RML,routes,parameters,test = False):
     window.protocol("WM_DELETE_WINDOW", window.destroy)
 
     # Create an instance of SerialComm
-    serialComm = SerialComm('COM6',115200)  # Replace 'COMx' with your actual COM port
+    serialComm = SerialComm('COM3')  # Replace 'COMx' with your actual COM port
 
-    print(parameters)
+    #print(parameters)
 
     N                       = parameters[0]
     M                       = parameters[1]
@@ -1244,38 +1298,9 @@ def AGG(RML,routes,parameters,test = False):
     n_doubleSwitch          = parameters[7]
     n_scissorCrossings      = parameters[8]
 
+    # Schedule the function to be called after 100ms
+    window.after(10, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
     # Main loop for tkinter
-    while True:
-        window.update_idletasks()
-        window.update()
-
-        # Read data from the serial port
-        data = serialComm.read()
-        if data is not None:
-            print(f"Received data:{data}")
-            data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(data, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
-
-            print(f'Received data:{data_routes}|{data_signals}|{data_levelCrossings}|{data_switches}|{data_doubleSwitch}|{data_scissorCrossings}')
-
-            if n_signals > 0 :
-                for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
-                    start = sig_index * 2
-                    chunk = data_signals[start:start+2]
-                    dataFrame.data['Signal'][sig_key] = int(chunk, 2)
-
-            if n_levelCrossings > 0 :
-                for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
-                    dataFrame.data['LevelCrossing'][lc_key] = int(data_levelCrossings[lc_index])
-
-            if n_switches > 0:
-                for sw_index,sw_key in enumerate(dataFrame.data['Switch'].keys()):
-                    dataFrame.data['Switch'][sw_key] = int(data_switches[sw_index])
-            
-            dataFrame.update_text()
-
-        # Write data to the serial port
-        #message = input("Enter a message to send: ")
-        #serialComm.write(message)
-    
     window.mainloop()
+        
