@@ -42,7 +42,7 @@ class DataFrame:
         self.text_id = None
         self.width = width
         self.height = height
-        self.sent = ""
+        self.newEvent = False
 
         for ne in network:
             if 'Occupation' not in self.data:
@@ -121,11 +121,13 @@ class NetElement:
             #print(f'NetElement {self.net_element_key} is occupied')
             self.dataFrame.data['Occupation'][self.net_element_key] = 0
             #print(self.dataFrame)
+            self.dataFrame.newEvent = True
             self.dataFrame.update_text()
         else:
             #print(f'NetElement {self.net_element_key} is released')
             self.dataFrame.data['Occupation'][self.net_element_key] = 1
             #print(self.dataFrame)
+            self.dataFrame.newEvent = True
             self.dataFrame.update_text()
 
 class BufferStop:
@@ -196,11 +198,13 @@ class LevelCrossing:
         if self.pressed:
             #print(f'LevelCrossing {self.levelCrossing_key} is closed')
             self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] = 0
+            self.dataFrame.newEvent = True
             self.dataFrame.update_text()
             self.update_draw()
         else:
             #print(f'LevelCrossing {self.levelCrossing_key} is open')
             self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] = 1
+            self.dataFrame.newEvent = True
             self.dataFrame.update_text()
             self.update_draw()
 
@@ -301,14 +305,14 @@ class Signals:
         #print(self.dataFrame.data['Signal'][self.signal_key])
 
         match self.dataFrame.data['Signal'][self.signal_key]:
-                case 0:
-                    color = 'red'
-                case 1:
-                    color = 'orange'
-                case 2:
-                    color = 'yellow'
-                case 3:
-                    color = 'green'
+            case 0:
+                color = 'red'
+            case 1:
+                color = 'orange'
+            case 2:
+                color = 'yellow'
+            case 3:
+                color = 'green'
 
         self.canvas.itemconfig(self.semaphore[-3], fill=color)
         self.canvas.itemconfig(self.semaphore[-2], fill=color)
@@ -495,6 +499,7 @@ class Switch:
             if self.pressed:
                 #print(f'Switch {self.switch_key} is reverse')
                 self.dataFrame.data['Switch'][self.switch_key] = 1
+                self.dataFrame.newEvent = True
                 self.dataFrame.update_text()
                 self.update_draw()
 
@@ -505,6 +510,7 @@ class Switch:
             else:
                 #print(f'Switch {self.switch_key} is normal')
                 self.dataFrame.data['Switch'][self.switch_key] = 0
+                self.dataFrame.newEvent = True
                 self.dataFrame.update_text()
                 self.update_draw()
 
@@ -1183,12 +1189,15 @@ def split_data(input_string, n_routes, n_signals, n_levelCrossings, n_switches, 
 def read_and_write_data(window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
     # Read data from the serial port
 
-    if dataFrame.message != dataFrame.sent:
-        dataFrame.sent = dataFrame.message
+    #if dataFrame.message != dataFrame.sent:
+    if dataFrame.newEvent:
+        #dataFrame.sent = dataFrame.message
 
+        dataFrame.newEvent = False
         message = dataFrame.message
         print(f'>>> {message}')
         serialComm.write(message)
+        #time.sleep(0.25)
 
 
     data = serialComm.read()
@@ -1298,6 +1307,7 @@ def AGG(RML,routes,parameters,test = False):
     n_doubleSwitch          = parameters[7]
     n_scissorCrossings      = parameters[8]
 
+    dataFrame.newEvent = True
     # Schedule the function to be called after 100ms
     window.after(10, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
