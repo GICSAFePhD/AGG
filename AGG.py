@@ -98,7 +98,7 @@ class DataFrame:
         self.switchFrame = ''.join([str(value) for value in self.data['Switch'].values()])
 
         self.frame =  f'<{self.occupationFrame}|{self.routeFrame}|{self.signalFrame}|{self.levelCrossingFrame}|{self.switchFrame}>'
-        self.message = f'<{self.occupationFrame}{self.routeFrame}{self.signalFrame}{self.levelCrossingFrame}{self.switchFrame}>'
+        self.dataSent = f'<{self.occupationFrame}{self.routeFrame}{self.signalFrame}{self.levelCrossingFrame}{self.switchFrame}>'
         
         self.window.title(self.frame)
       
@@ -1189,22 +1189,21 @@ def split_data(input_string, n_routes, n_signals, n_levelCrossings, n_switches, 
 def read_and_write_data(window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
     # Read data from the serial port
 
-    #if dataFrame.message != dataFrame.sent:
+    
     if dataFrame.newEvent:
-        #dataFrame.sent = dataFrame.message
-
         dataFrame.newEvent = False
-        message = dataFrame.message
-        print(f'>>> {message}')
-        serialComm.write(message)
-        #time.sleep(0.25)
+        dataSent = dataFrame.dataSent
+        print(f'>>> {dataSent}')
+        serialComm.write(dataSent)
+        time.sleep(0.5)
+    
+    dataSent = dataFrame.dataSent
 
-
-    data = serialComm.read()
-    if data is not None:
-        print(f"<<< {data}")
+    dataReceived = serialComm.read()
+    if dataReceived is not None:
+        print(f"<<<             {dataReceived}")
         
-        data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(data, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+        data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataReceived, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
         if n_signals > 0 :
             for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
@@ -1222,8 +1221,15 @@ def read_and_write_data(window, serialComm, dataFrame, n_routes, n_signals, n_le
         
         dataFrame.update_text()
     
+        print(f'{dataSent[12:-1]}\n{dataReceived}')
+        if dataSent[12:-1] != dataReceived:
+            dataSent = dataFrame.dataSent
+            print(f'>>> {dataSent}')
+            serialComm.write(dataSent)
+            time.sleep(0.5)
+
     # Schedule the function to be called again after 100ms
-    window.after(10, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(100, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
