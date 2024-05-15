@@ -20,7 +20,7 @@ class SerialComm:
         self.ser.dsrdtr = False                 # disable hardware (DSR/DTR) flow control
         self.ser.writeTimeout = 2               # timeout for write
         
-        self.data = None
+        self.dataReceived = None
 
         self.ack = False
 
@@ -30,16 +30,16 @@ class SerialComm:
 
     def read(self):
         if self.ser.in_waiting > 0:
-            self.data = self.ser.readline().decode('ascii')
+            self.dataReceived = self.ser.readline().decode('ascii')
 
             self.ser.flushInput()  # flush input buffer, discarding all its contents
             self.ser.flushOutput() # flush output buffer, aborting current output and discard all that is in buffer
 
-            return self.data
+            return self.dataReceived
 
     def write(self, message):
         self.ser.write(message.encode())
-        time.sleep(0.1)
+        time.sleep(0.25)
 
     def close(self):
         self.ser.close()
@@ -53,6 +53,9 @@ class DataFrame:
         self.width = width
         self.height = height
         self.newEvent = False
+
+        self.dataSent = None
+        self.dataReceived = None
 
         for ne in network:
             if 'Occupation' not in self.data:
@@ -1186,20 +1189,16 @@ def read_and_write_data(window, serialComm, dataFrame, n_routes, n_signals, n_le
     if dataFrame.newEvent:
         dataFrame.newEvent = False
         dataFrame.ack = False
-        dataSent = dataFrame.dataSent
-        print(f'>>> {dataSent}')
-        serialComm.write(dataSent)
-        #time.sleep(0.5)
-
-    dataSent = dataFrame.dataSent
+        print(f'>>> {dataFrame.dataSent}')
+        serialComm.write(dataFrame.dataSent)
 
     if dataFrame.ack == False:
         print('x')
-        dataReceived = serialComm.read()
-        if dataReceived is not None:           
-            print(f"<<<             {dataReceived}")
+        dataFrame.dataReceived = serialComm.read()
+        if dataFrame.dataReceived is not None:           
+            print(f"<<<             {dataFrame.dataReceived}")
             
-            data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataReceived, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+            data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataFrame.dataReceived, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
             if n_signals > 0 :
                 for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
@@ -1217,19 +1216,18 @@ def read_and_write_data(window, serialComm, dataFrame, n_routes, n_signals, n_le
             
             dataFrame.update_text()
         
-            print(f'S {dataSent[12:-1]}\nR {dataReceived}')
-            if dataSent[12:-1] != dataReceived:
-                dataSent = dataFrame.dataSent
-                print(f'X>> {dataSent}')
-                serialComm.write(dataSent)
-                #time.sleep(0.5)
-            else:
-                dataFrame.ack = True
-                print('\n')
+        print(f'S               {dataFrame.dataSent[12:-1]}\nR               {dataFrame.dataReceived}')
+        if dataFrame.dataSent[12:-1] != dataFrame.dataReceived:
+            print(f'X>> {dataFrame.dataSent}')
+            serialComm.write(dataFrame.dataSent)
+            #time.sleep(0.5)
+        else:
+            dataFrame.ack = True
+            print('\n')
         
 
     # Schedule the function to be called again after 100ms
-    window.after(10, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(100, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
@@ -1315,7 +1313,7 @@ def AGG(RML,routes,parameters,test = False):
 
     dataFrame.newEvent = True
     # Schedule the function to be called after 100ms
-    window.after(10, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(100, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
     # Main loop for tkinter
     window.mainloop()
