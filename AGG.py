@@ -22,6 +22,8 @@ class SerialComm:
         
         self.data = None
 
+        self.ack = False
+
         self.ser.flushInput()  # flush input buffer, discarding all its contents
         self.ser.flushOutput() # flush output buffer, aborting current output and discard all that is in buffer
 
@@ -1183,56 +1185,51 @@ def read_and_write_data(window, serialComm, dataFrame, n_routes, n_signals, n_le
 
     if dataFrame.newEvent:
         dataFrame.newEvent = False
+        dataFrame.ack = False
         dataSent = dataFrame.dataSent
         print(f'>>> {dataSent}')
         serialComm.write(dataSent)
         #time.sleep(0.5)
-    
+
     dataSent = dataFrame.dataSent
 
-    dataReceived = serialComm.read()
-    if dataReceived is not None:
-        print(f"<<<             {dataReceived}")
+    if dataFrame.ack == False:
+        print('x')
+        dataReceived = serialComm.read()
+        if dataReceived is not None:           
+            print(f"<<<             {dataReceived}")
+            
+            data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataReceived, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+
+            if n_signals > 0 :
+                for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
+                    start = sig_index * 2
+                    chunk = data_signals[start:start+2]
+                    dataFrame.data['Signal'][sig_key] = int(chunk, 2)
+
+            if n_levelCrossings > 0 :
+                for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
+                    dataFrame.data['LevelCrossing'][lc_key] = int(data_levelCrossings[lc_index])
+
+            if n_switches > 0:
+                for sw_index,sw_key in enumerate(dataFrame.data['Switch'].keys()):
+                    dataFrame.data['Switch'][sw_key] = int(data_switches[sw_index])
+            
+            dataFrame.update_text()
         
-        data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataReceived, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
-
-        if n_signals > 0 :
-            for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
-                start = sig_index * 2
-                chunk = data_signals[start:start+2]
-                dataFrame.data['Signal'][sig_key] = int(chunk, 2)
-
-        if n_levelCrossings > 0 :
-            for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
-                dataFrame.data['LevelCrossing'][lc_key] = int(data_levelCrossings[lc_index])
-
-        if n_switches > 0:
-            for sw_index,sw_key in enumerate(dataFrame.data['Switch'].keys()):
-                dataFrame.data['Switch'][sw_key] = int(data_switches[sw_index])
+            print(f'S {dataSent[12:-1]}\nR {dataReceived}')
+            if dataSent[12:-1] != dataReceived:
+                dataSent = dataFrame.dataSent
+                print(f'X>> {dataSent}')
+                serialComm.write(dataSent)
+                #time.sleep(0.5)
+            else:
+                dataFrame.ack = True
+                print('\n')
         
-        dataFrame.update_text()
-    
-        print(f'S {dataSent[12:-1]}\nR {dataReceived}')
-        if dataSent[12:-1] != dataReceived:
-            dataSent = dataFrame.dataSent
-            print(f'X>> {dataSent}')
-            serialComm.write(dataSent)
-            #time.sleep(0.5)
-        else:
-            print('\n')
-    else:
-        print(f'S {dataSent[12:-1]}\nR {dataReceived}')
-        if dataSent[12:-1] != dataReceived:
-            dataSent = dataFrame.dataSent
-            print(f'X>> {dataSent}')
-            serialComm.write(dataSent)
-            #time.sleep(0.5)
-        else:
-            print('\n')
-
 
     # Schedule the function to be called again after 100ms
-    window.after(1, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(10, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
@@ -1318,7 +1315,7 @@ def AGG(RML,routes,parameters,test = False):
 
     dataFrame.newEvent = True
     # Schedule the function to be called after 100ms
-    window.after(1, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(10, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
     # Main loop for tkinter
     window.mainloop()
