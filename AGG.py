@@ -39,7 +39,7 @@ class SerialComm:
 
     def write(self, message):
         self.ser.write(message.encode())
-        time.sleep(0.25)
+        time.sleep(0.5)
 
     def close(self):
         self.ser.close()
@@ -1227,7 +1227,7 @@ def read_and_write_data(window, serialComm, dataFrame, n_routes, n_signals, n_le
         
 
     # Schedule the function to be called again after 100ms
-    window.after(100, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
@@ -1313,7 +1313,7 @@ def AGG(RML,routes,parameters,test = False):
 
     dataFrame.newEvent = True
     # Schedule the function to be called after 100ms
-    window.after(100, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
     # Main loop for tkinter
     window.mainloop()
