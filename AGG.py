@@ -22,11 +22,10 @@ class SerialComm:
         
         self.dataReceived = None
 
-        self.ack = False
+        self.ack = 0
 
         self.ser.flushInput()  # flush input buffer, discarding all its contents
         self.ser.flushOutput() # flush output buffer, aborting current output and discard all that is in buffer
-
 
     def read(self):
         if self.ser.in_waiting > 0:
@@ -68,7 +67,6 @@ class DataFrame:
             self.data['Routes'][f'R{route}'] = 0
 
         for ne in network:
-
             if 'Signal' in network[ne]:
                 if 'Signal' not in self.data:
                     self.data['Signal'] = {}
@@ -354,10 +352,11 @@ class Signals:
                 case 'green':
                     if signal_name == self.name:
                         routes = list(signal.routes.values())
+                        #self.dataFrame.newEvent = True
                         print(f'Signal {self.name} is released [{routes}]')
                         
                         for route in routes:
-                            self.dataFrame.data['Routes'][route] = 1
+                            self.dataFrame.data['Routes'][route] = 0
                         self.dataFrame.update_text()
                         color = 'grey'
                         self.canvas.itemconfig(self.id, fill=color)
@@ -379,7 +378,8 @@ class Signals:
                         if signal.color == 'green':
                             route = signal.routes[self.name]
                             print(f'Route {route} {route[1:]} launched')
-                            self.dataFrame.data['Routes'][route] = 0
+                            self.dataFrame.data['Routes'][route] = 1
+                            self.dataFrame.newEvent = True
                             self.dataFrame.update_text()
                         signal.color = 'grey'
                         signal.canvas.itemconfig(signal.id, fill=signal.color)
@@ -1183,20 +1183,20 @@ def split_data(input_string, n_routes, n_signals, n_levelCrossings, n_switches, 
 
     return data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings
 
-def read_and_write_data(window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
+def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
     # Read data from the serial port
 
     if dataFrame.newEvent:
         dataFrame.newEvent = False
-        dataFrame.ack = False
+        dataFrame.ack = 0
         print(f'>>> {dataFrame.dataSent}')
         serialComm.write(dataFrame.dataSent)
 
-    if dataFrame.ack == False:
-        print('x')
+    if dataFrame.ack < 3:
+        print(f'Retry [{dataFrame.ack}]')
         dataFrame.dataReceived = serialComm.read()
         if dataFrame.dataReceived is not None:           
-            print(f"<<<             {dataFrame.dataReceived}")
+            print(f"<<< {(n_netElements+1) * " "}{dataFrame.dataReceived}")
             
             data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataFrame.dataReceived, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
@@ -1216,18 +1216,16 @@ def read_and_write_data(window, serialComm, dataFrame, n_routes, n_signals, n_le
             
             dataFrame.update_text()
         
-        print(f'S               {dataFrame.dataSent[12:-1]}\nR               {dataFrame.dataReceived}')
-        if dataFrame.dataSent[12:-1] != dataFrame.dataReceived:
+        print(f'>  {(n_netElements+1) * " "} {dataFrame.dataSent[n_netElements+1:-1]}\n<  {(n_netElements+1) * " "} {dataFrame.dataReceived}')
+        if dataFrame.dataSent[n_netElements+1:-1] != dataFrame.dataReceived:
             print(f'X>> {dataFrame.dataSent}')
             serialComm.write(dataFrame.dataSent)
-            #time.sleep(0.5)
         else:
-            dataFrame.ack = True
-            print('\n')
-        
+            dataFrame.ack = dataFrame.ack + 1
+            print(f'Done [{dataFrame.ack}]\n')
 
     # Schedule the function to be called again after 100ms
-    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
@@ -1313,7 +1311,7 @@ def AGG(RML,routes,parameters,test = False):
 
     dataFrame.newEvent = True
     # Schedule the function to be called after 100ms
-    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
     # Main loop for tkinter
     window.mainloop()
