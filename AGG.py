@@ -1200,6 +1200,12 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
             
             data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataFrame.dataReceived, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
+            if n_routes > 0 :
+                for rt_index,rt_key in enumerate(dataFrame.data['Routes'].keys()):
+                    #print(f'{data_routes} {data_signals} {data_levelCrossings} {data_switches}')
+                    #print(f'{rt_index} {rt_key} [{data_routes[rt_index]}] ({data_routes})')
+                    dataFrame.data['Routes'][rt_key] = int(data_routes[rt_index])
+
             if n_signals > 0 :
                 for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
                     start = sig_index * 2
