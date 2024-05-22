@@ -73,12 +73,13 @@ class DataFrame:
                 for signal in network[ne]['Signal']:
                     self.data['Signal'][signal] = 0
 
+        
             if 'LevelCrossing' in network[ne]:
                 if 'LevelCrossing' not in self.data:
                     self.data['LevelCrossing'] = {}
                 for levelCrossing in network[ne]['LevelCrossing']:
                     self.data['LevelCrossing'][levelCrossing] = 1
-
+         
             if 'Switch' in network[ne]:
                 if 'Switch' not in self.data:
                     self.data['Switch'] = {}
@@ -89,7 +90,11 @@ class DataFrame:
         self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
         self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
         self.signalFrame = ''.join([format(value, '02b') for value in self.data['Signal'].values()])
-        self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
+        if 'LevelCrossing' in self.data:
+            self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
+        else:
+            self.levelCrossingFrame = None
+            
         self.switchFrame = ''.join([str(value) for value in self.data['Switch'].values()])
 
         self.frame =  f'{self.occupationFrame}|{self.routeFrame}|{self.signalFrame}|{self.levelCrossingFrame}|{self.switchFrame}'
@@ -1271,7 +1276,9 @@ def AGG(RML,routes,parameters,test = False):
     switches = {}
     signals = {}
 
+  
     dataFrame = DataFrame(window,canvas, netElements, routes, width, height)
+  
 
     for netElement in netElements:
         lines_plot = draw_lines(canvas, dataFrame,netElements, switches_pos, width, height,netElement,switches,signal_routes,signals)
@@ -1303,7 +1310,7 @@ def AGG(RML,routes,parameters,test = False):
     # Create an instance of SerialComm
     serialComm = SerialComm('COM3')  # Replace 'COMx' with your actual COM port
 
-    #print(parameters)
+    print(parameters)
 
     N                       = parameters[0]
     M                       = parameters[1]
