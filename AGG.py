@@ -38,7 +38,7 @@ class SerialComm:
 
     def write(self, message):
         self.ser.write(message.encode())
-        time.sleep(0.5)
+        time.sleep(0.05)
 
     def close(self):
         self.ser.close()
@@ -206,7 +206,7 @@ class LevelCrossing:
         new_color = 'red' if self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] == 0 else 'blue'
         for id in self.ids:
             self.canvas.itemconfig(id, fill=new_color)
-        self.canvas.after(50, self.update_draw)
+        self.canvas.after(1, self.update_draw)
         
     def on_net_element_click(self, event):
         if self.dataFrame.data['LevelCrossing'][self.levelCrossing_key]:
@@ -331,7 +331,7 @@ class Signals:
         self.canvas.itemconfig(self.semaphore[-2], fill=color)
         self.canvas.itemconfig(self.semaphore[-1], fill=color,outline=color)
 
-        self.canvas.after(50, self.update_draw)
+        self.canvas.after(1, self.update_draw)
 
     def on_signal_click(self, event):
         self.pressed = not self.pressed
@@ -382,7 +382,7 @@ class Signals:
                         color = 'grey'
                         if signal.color == 'green':
                             route = signal.routes[self.name]
-                            print(f'Route {route} {route[1:]} launched')
+                            print(f'Route {route} launched')
                             self.dataFrame.data['Routes'][route] = 1
                             self.dataFrame.newEvent = True
                             self.dataFrame.update_text()
@@ -504,7 +504,7 @@ class Switch:
             self.canvas.itemconfig(self.ids[-1], fill=normal_color)
             self.canvas.tag_raise(self.ids[index])
             
-        self.canvas.after(50, self.update_draw)
+        self.canvas.after(1, self.update_draw)
             
     def switch_position(self, event):
         if self.type == 'simple':
@@ -1197,7 +1197,7 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
         print(f'>>> {dataFrame.dataSent}')
         serialComm.write(dataFrame.dataSent)
 
-    if dataFrame.ack < 3:
+    if dataFrame.ack < 7:
         print(f'Retry [{dataFrame.ack}]')
         dataFrame.dataReceived = serialComm.read()
         if dataFrame.dataReceived is not None:           
@@ -1236,11 +1236,12 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
             print(f'Done [{dataFrame.ack}]\n')
 
     # Schedule the function to be called again after 100ms
-    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(50, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
     print("Reading railML object")
+    
     netElements = get_netElements(RML)
 
     for netElement in netElements:
@@ -1324,7 +1325,7 @@ def AGG(RML,routes,parameters,test = False):
 
     dataFrame.newEvent = True
     # Schedule the function to be called after 100ms
-    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(50, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
     # Main loop for tkinter
     window.mainloop()
