@@ -1241,7 +1241,7 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
     print("Reading railML object")
-    
+    #return
     netElements = get_netElements(RML)
 
     for netElement in netElements:
