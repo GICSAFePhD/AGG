@@ -38,7 +38,7 @@ class SerialComm:
 
     def write(self, message):
         self.ser.write(message.encode())
-        time.sleep(0.05)
+        time.sleep(0.1)
 
     def close(self):
         self.ser.close()
@@ -72,7 +72,6 @@ class DataFrame:
                     self.data['Signal'] = {}
                 for signal in network[ne]['Signal']:
                     self.data['Signal'][signal] = 0
-
         
             if 'LevelCrossing' in network[ne]:
                 if 'LevelCrossing' not in self.data:
@@ -86,10 +85,9 @@ class DataFrame:
                 for levelCrossing in network[ne]['Switch']:
                     self.data['Switch'][levelCrossing] = 0
 
-
         self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
         self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
-        self.signalFrame = ''.join([format(value, '02b') for value in self.data['Signal'].values()])
+        self.signalFrame = ''.join([str(value) for value in self.data['Signal'].values()])
         if 'LevelCrossing' in self.data:
             self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
         else:
@@ -109,7 +107,7 @@ class DataFrame:
     def update_text(self):
         self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
         self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
-        self.signalFrame = ''.join([format(value, '02b') for value in self.data['Signal'].values()])
+        self.signalFrame = ''.join([str(value) for value in self.data['Signal'].values()])
         self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
         self.switchFrame = ''.join([str(value) for value in self.data['Switch'].values()])
 
@@ -120,12 +118,14 @@ class DataFrame:
       
 class NetElement:
     def __init__(self, canvas,dataFrame,x1, y1, x2, y2, net_elements, net_element_key, color='black'):
-        self.id = canvas.create_line(x1, y1, x2, y2, fill=color,width=3)
+        self.id = canvas.create_line(x1, y1, x2, y2, fill=color,width=4)
         self.pressed = False
+        self.canvas = canvas
         self.net_elements = net_elements
         self.net_element_key = net_element_key
         self.dataFrame = dataFrame
         canvas.tag_bind(self.id, "<Button-1>", self.on_net_element_click)
+        self.update_draw()
 
     def on_net_element_click(self, event):
         
@@ -136,15 +136,34 @@ class NetElement:
         if self.pressed:
             #print(f'NetElement {self.net_element_key} is occupied')
             self.dataFrame.data['Occupation'][self.net_element_key] = 0
-            #print(self.dataFrame)
             self.dataFrame.newEvent = True
             self.dataFrame.update_text()
+            self.update_draw()
         else:
             #print(f'NetElement {self.net_element_key} is released')
             self.dataFrame.data['Occupation'][self.net_element_key] = 1
-            #print(self.dataFrame)
             self.dataFrame.newEvent = True
             self.dataFrame.update_text()
+            self.update_draw()
+
+    def update_draw(self):
+        #print(self.dataFrame.data['Occupation'])
+        match self.dataFrame.data['Occupation'][self.net_element_key]:
+            case 0: #0000
+                color = 'red'
+            case 1: #0001
+                color = 'black'
+            case 4: #0100
+                color = 'pink'
+            case 5: #0101
+                color = 'grey60'
+            case 8: #1000
+                color = 'cyan'
+            case 9: #1001
+                color = 'blue'
+
+        self.canvas.itemconfig(self.id, fill=color)
+        self.canvas.after(1, self.update_draw)
 
 class BufferStop:
     def __init__(self, canvas, x, y, direction ,color='black'):
@@ -1167,26 +1186,30 @@ def bind_events(canvas, lines):
     canvas.bind("<B1-Motion>", on_drag)
     canvas.bind("<MouseWheel>", on_zoom)
 
-def split_data(input_string, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
+def split_data(input_string, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
     # Remove the angle brackets from the input string
     data_string = input_string#[1:-1]
 
     # Calculate the starting index for each variable
-    start_signals = n_routes
-    start_levelCrossings = start_signals + 2*n_signals
+    start_routes = n_netElements
+    start_signals = start_routes + n_routes
+    start_levelCrossings = start_signals + n_signals
     start_switches = start_levelCrossings + n_levelCrossings
     start_doubleSwitch = start_switches + n_switches
     start_scissorCrossings = start_doubleSwitch + n_doubleSwitch
 
+    #TO FIX!
+
     # Split the data string into the variables
-    data_routes = data_string[:n_routes]
+    data_tracks = data_string[:start_routes]
+    data_routes = data_string[start_routes:start_signals]
     data_signals = data_string[start_signals:start_levelCrossings]
     data_levelCrossings = data_string[start_levelCrossings:start_switches]
     data_switches = data_string[start_switches:start_doubleSwitch]
     data_doubleSwitch = data_string[start_doubleSwitch:start_scissorCrossings]
     data_scissorCrossings = data_string[start_scissorCrossings:]
 
-    return data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings
+    return data_tracks, data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings
 
 def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
     # Read data from the serial port
@@ -1201,21 +1224,22 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
         print(f'Retry [{dataFrame.ack}]')
         dataFrame.dataReceived = serialComm.read()
         if dataFrame.dataReceived is not None:           
-            print(f"<<< {(n_netElements+1) * " "}{dataFrame.dataReceived}")
+            print(f"<<< {dataFrame.dataReceived}")
             
-            data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataFrame.dataReceived, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+            data_tracks, data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataFrame.dataReceived, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+
+            if n_netElements > 0 :
+                for tck_index,tck_key in enumerate(dataFrame.data['Occupation'].keys()):
+                    dataFrame.data['Occupation'][tck_key] = int(data_tracks[tck_index])
 
             if n_routes > 0 :
                 for rt_index,rt_key in enumerate(dataFrame.data['Routes'].keys()):
-                    #print(f'{data_routes} {data_signals} {data_levelCrossings} {data_switches}')
-                    #print(f'{rt_index} {rt_key} [{data_routes[rt_index]}] ({data_routes})')
+                    print(f'OHHHH:{data_routes[rt_index]}')
                     dataFrame.data['Routes'][rt_key] = int(data_routes[rt_index])
 
             if n_signals > 0 :
                 for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
-                    start = sig_index * 2
-                    chunk = data_signals[start:start+2]
-                    dataFrame.data['Signal'][sig_key] = int(chunk, 2)
+                    dataFrame.data['Signal'][sig_key] = int(data_signals[sig_index])
 
             if n_levelCrossings > 0 :
                 for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
@@ -1227,14 +1251,14 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
             
             dataFrame.update_text()
         
-        print(f'>  {(n_netElements+1) * " "} {dataFrame.dataSent[n_netElements+1:-1]}\n<  {(n_netElements+1) * " "} {dataFrame.dataReceived}')
-        if dataFrame.dataSent[n_netElements+1:-1] != dataFrame.dataReceived:
-            print(f'X>> {dataFrame.dataSent}')
+        print(f'>   {dataFrame.dataSent[1:-1]}\n<   {dataFrame.dataReceived}')
+        if dataFrame.dataSent[1:-1] != dataFrame.dataReceived:
+            print(f'X>> {dataFrame.dataSent[-1:1]}')
             serialComm.write(dataFrame.dataSent)
         else:
             dataFrame.ack = dataFrame.ack + 1
             print(f'Done [{dataFrame.ack}]\n')
-
+    
     # Schedule the function to be called again after 100ms
     window.after(50, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
