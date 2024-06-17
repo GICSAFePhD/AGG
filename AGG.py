@@ -113,7 +113,7 @@ class DataFrame:
 
         self.frame =  f'<{self.occupationFrame}|{self.routeFrame}|{self.signalFrame}|{self.levelCrossingFrame}|{self.switchFrame}>'
         self.dataSent = f'<{self.occupationFrame}{self.routeFrame}{self.signalFrame}{self.levelCrossingFrame}{self.switchFrame}>'
-        
+
         self.window.title(self.frame)
       
 class NetElement:
@@ -133,33 +133,35 @@ class NetElement:
         new_color = 'red' if self.pressed else 'black'
         for net_element in self.net_elements.values():
             event.widget.itemconfig(net_element.id, fill=new_color)
+
+        value = int(self.dataFrame.data['Occupation'][self.net_element_key], 16)
+
         if self.pressed:
             #print(f'NetElement {self.net_element_key} is occupied')
-            self.dataFrame.data['Occupation'][self.net_element_key] = 0
-            self.dataFrame.newEvent = True
-            self.dataFrame.update_text()
-            self.update_draw()
+            value &= ~1
         else:
             #print(f'NetElement {self.net_element_key} is released')
-            self.dataFrame.data['Occupation'][self.net_element_key] = 1
-            self.dataFrame.newEvent = True
-            self.dataFrame.update_text()
-            self.update_draw()
+            value |= 1
+        
+        self.dataFrame.data['Occupation'][self.net_element_key] = format(value, 'x')
+        self.dataFrame.newEvent = True
+        self.dataFrame.update_text()
+        self.update_draw()
 
     def update_draw(self):
-        #print(self.dataFrame.data['Occupation'])
-        match self.dataFrame.data['Occupation'][self.net_element_key]:
-            case 0: #0000
+        #print(self.dataFrame.data['Occupation'][self.net_element_key])
+        match str(self.dataFrame.data['Occupation'][self.net_element_key]):
+            case '0': #0000
                 color = 'red'
-            case 1: #0001
+            case '1': #0001
                 color = 'black'
-            case 4: #0100
+            case '4': #0100
                 color = 'pink'
-            case 5: #0101
+            case '5': #0101
                 color = 'grey60'
-            case 8: #1000
+            case '8': #1000
                 color = 'cyan'
-            case 9: #1001
+            case '9': #1001
                 color = 'blue'
 
         self.canvas.itemconfig(self.id, fill=color)
@@ -222,24 +224,34 @@ class LevelCrossing:
 
     def update_draw(self):
         #print(self.dataFrame.data['LevelCrossing'])
-        new_color = 'red' if self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] == 0 else 'blue'
+
+        match str(self.dataFrame.data['LevelCrossing'][self.levelCrossing_key]):
+            case '0': #0000
+                color = 'red'
+            case '1': #0001
+                color = 'blue'
+            case '4': #0100
+                color = 'pink'
+            case '5': #0101
+                color = 'grey60'
+            case '8': #1000
+                color = 'cyan'
+            case '9': #1001
+                color = 'purple'
+
         for id in self.ids:
-            self.canvas.itemconfig(id, fill=new_color)
+            self.canvas.itemconfig(id, fill=color)
         self.canvas.after(1, self.update_draw)
         
     def on_net_element_click(self, event):
-        if self.dataFrame.data['LevelCrossing'][self.levelCrossing_key]:
-            #print(f'LevelCrossing {self.levelCrossing_key} is closed')
-            self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] = 0
-            self.dataFrame.newEvent = True
-            self.dataFrame.update_text()
-            self.update_draw()
-        else:
-            #print(f'LevelCrossing {self.levelCrossing_key} is open')
-            self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] = 1
-            self.dataFrame.newEvent = True
-            self.dataFrame.update_text()
-            self.update_draw()
+
+        value = int(self.dataFrame.data['LevelCrossing'][self.levelCrossing_key], 16)
+        value ^= 1
+        self.dataFrame.data['LevelCrossing'][self.levelCrossing_key] = format(value, 'x')
+
+        self.dataFrame.newEvent = True
+        self.dataFrame.update_text()
+        self.update_draw()
 
 class Border:
     def __init__(self, canvas, x, y, direction ,color='black'):
@@ -336,14 +348,14 @@ class Signals:
     def update_draw(self):
         #print(self.dataFrame.data['Signal'][self.signal_key])
 
-        match self.dataFrame.data['Signal'][self.signal_key]:
-            case 0:
+        match str(self.dataFrame.data['Signal'][self.signal_key]):
+            case '0':
                 color = 'red'
-            case 1:
+            case '1':
                 color = 'orange'
-            case 2:
+            case '2':
                 color = 'yellow'
-            case 3:
+            case '3':
                 color = 'green'
 
         self.canvas.itemconfig(self.semaphore[-3], fill=color)
@@ -515,30 +527,55 @@ class Switch:
         #print(self.dataFrame.data['Switch'])
         if self.type == 'simple':
 
-            normal_color = 'black' if self.dataFrame.data['Switch'][self.switch_key] == 0 else 'white'
-            reverse_color = 'white' if normal_color == 'black' else 'black'
-            index = -1 if self.dataFrame.data['Switch'][self.switch_key] == 0 else -2
+            match str(self.dataFrame.data['Switch'][self.switch_key]):
+                case '0': #0000
+                    main_color = 'black'
+                    normal_color = 'black'
+                    reverse_color = 'white'
+                    index = -1
+                case '1': #0001
+                    main_color = 'black'
+                    normal_color = 'white'
+                    reverse_color = 'black'
+                    index = -2
+                case '4': #0100
+                    main_color = 'pink'
+                    normal_color = 'pink'
+                    reverse_color = 'white'
+                    index = -1
+                case '5': #0101
+                    main_color = 'pink'
+                    normal_color = 'white'
+                    reverse_color = 'pink'
+                    index = -2
+                case '8': #1000
+                    main_color = 'blue'
+                    normal_color = 'blue'
+                    reverse_color = 'white'
+                    index = -1
+                case '9': #1001
+                    main_color = 'blue'
+                    normal_color = 'white'
+                    reverse_color = 'blue'
+                    index = -2
 
             self.canvas.itemconfig(self.ids[-2], fill=reverse_color)
             self.canvas.itemconfig(self.ids[-1], fill=normal_color)
+            self.canvas.itemconfig(self.ids[0], fill=main_color)
             self.canvas.tag_raise(self.ids[index])
             
         self.canvas.after(1, self.update_draw)
             
     def switch_position(self, event):
         if self.type == 'simple':
-            if self.dataFrame.data['Switch'][self.switch_key]:
-                #print(f'Switch {self.switch_key} is normal')
-                self.dataFrame.data['Switch'][self.switch_key] = 0
-                self.dataFrame.newEvent = True
-                self.dataFrame.update_text()
-                self.update_draw()         
-            else:
-                #print(f'Switch {self.switch_key} is reverse')
-                self.dataFrame.data['Switch'][self.switch_key] = 1
-                self.dataFrame.newEvent = True
-                self.dataFrame.update_text()
-                self.update_draw()    
+
+            value = int(self.dataFrame.data['Switch'][self.switch_key], 16)
+            value ^= 1
+            self.dataFrame.data['Switch'][self.switch_key] = format(value, 'x')
+
+            self.dataFrame.newEvent = True
+            self.dataFrame.update_text()
+            self.update_draw()    
                 
         if self.type == 'double':
             self.state = self.state + 1 if self.state < 3 else 0
@@ -1230,31 +1267,32 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
 
             if n_netElements > 0 :
                 for tck_index,tck_key in enumerate(dataFrame.data['Occupation'].keys()):
-                    dataFrame.data['Occupation'][tck_key] = int(data_tracks[tck_index])
+                    dataFrame.data['Occupation'][tck_key] = str(data_tracks[tck_index])
 
             if n_routes > 0 :
                 for rt_index,rt_key in enumerate(dataFrame.data['Routes'].keys()):
-                    print(f'OHHHH:{data_routes[rt_index]}')
-                    dataFrame.data['Routes'][rt_key] = int(data_routes[rt_index])
+                    dataFrame.data['Routes'][rt_key] = str(data_routes[rt_index])
 
             if n_signals > 0 :
                 for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
-                    dataFrame.data['Signal'][sig_key] = int(data_signals[sig_index])
+                    dataFrame.data['Signal'][sig_key] = str(data_signals[sig_index])
 
             if n_levelCrossings > 0 :
                 for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
-                    dataFrame.data['LevelCrossing'][lc_key] = int(data_levelCrossings[lc_index])
+                    dataFrame.data['LevelCrossing'][lc_key] = str(data_levelCrossings[lc_index])
 
             if n_switches > 0:
                 for sw_index,sw_key in enumerate(dataFrame.data['Switch'].keys()):
-                    dataFrame.data['Switch'][sw_key] = int(data_switches[sw_index])
+                    dataFrame.data['Switch'][sw_key] = str(data_switches[sw_index])
             
             dataFrame.update_text()
         
         print(f'>   {dataFrame.dataSent[1:-1]}\n<   {dataFrame.dataReceived}')
         if dataFrame.dataSent[1:-1] != dataFrame.dataReceived:
-            print(f'X>> {dataFrame.dataSent[-1:1]}')
-            serialComm.write(dataFrame.dataSent)
+            print(f'X>> {dataFrame.dataSent[1:-1]}')
+            print(f'Y>> {dataFrame.dataSent[1:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:-1]}')
+            
+            serialComm.write(dataFrame.dataSent[:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:])
         else:
             dataFrame.ack = dataFrame.ack + 1
             print(f'Done [{dataFrame.ack}]\n')
