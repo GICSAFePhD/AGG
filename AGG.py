@@ -1290,9 +1290,10 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
         print(f'>   {dataFrame.dataSent[1:-1]}\n<   {dataFrame.dataReceived}')
         if dataFrame.dataSent[1:-1] != dataFrame.dataReceived:
             print(f'X>> {dataFrame.dataSent[1:-1]}')
-            print(f'Y>> {dataFrame.dataSent[1:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:-1]}')
+            #print(f'Y>> {dataFrame.dataSent[1:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:-1]}')
             
-            serialComm.write(dataFrame.dataSent[:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:])
+            #serialComm.write(dataFrame.dataSent[:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:])
+            serialComm.write(dataFrame.dataSent)
         else:
             dataFrame.ack = dataFrame.ack + 1
             print(f'Done [{dataFrame.ack}]\n')
