@@ -349,13 +349,31 @@ class Signals:
         #print(self.dataFrame.data['Signal'][self.signal_key])
 
         match str(self.dataFrame.data['Signal'][self.signal_key]):
-            case '0':
+            case '0': #0000
                 color = 'red'
-            case '1':
+            case '1': #0001
                 color = 'orange'
-            case '2':
+            case '2': #0010
                 color = 'yellow'
-            case '3':
+            case '3': #0011
+                color = 'green'
+
+            case '4': #0100
+                color = 'red'
+            case '5': #0101
+                color = 'orange'
+            case '6': #0110
+                color = 'yellow'
+            case '7': #0111
+                color = 'green'
+
+            case '8': #1000
+                color = 'red'
+            case '9': #1001
+                color = 'orange'
+            case 'A': #1010
+                color = 'yellow'
+            case 'B': #1011
                 color = 'green'
 
         self.canvas.itemconfig(self.semaphore[-3], fill=color)
