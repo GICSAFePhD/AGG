@@ -156,13 +156,13 @@ class NetElement:
             case '1': #0001
                 color = 'black'
             case '4': #0100
-                color = 'pink'
+                color = 'red2'
             case '5': #0101
-                color = 'grey60'
+                color = 'grey70'
             case '8': #1000
-                color = 'cyan'
+                color = 'red3'
             case '9': #1001
-                color = 'blue'
+                color = 'grey60'
 
         self.canvas.itemconfig(self.id, fill=color)
         self.canvas.after(1, self.update_draw)
@@ -231,13 +231,13 @@ class LevelCrossing:
             case '1': #0001
                 color = 'blue'
             case '4': #0100
-                color = 'pink'
+                color = 'red2'
             case '5': #0101
-                color = 'grey60'
+                color = 'blue2'
             case '8': #1000
-                color = 'cyan'
+                color = 'red3'
             case '9': #1001
-                color = 'purple'
+                color = 'blue4'
 
         for id in self.ids:
             self.canvas.itemconfig(id, fill=color)
@@ -557,24 +557,24 @@ class Switch:
                     reverse_color = 'black'
                     index = -2
                 case '4': #0100
-                    main_color = 'pink'
-                    normal_color = 'pink'
+                    main_color = 'grey70'
+                    normal_color = 'grey70'
                     reverse_color = 'white'
                     index = -1
                 case '5': #0101
-                    main_color = 'pink'
+                    main_color = 'grey70'
                     normal_color = 'white'
-                    reverse_color = 'pink'
+                    reverse_color = 'grey70'
                     index = -2
                 case '8': #1000
-                    main_color = 'blue'
-                    normal_color = 'blue'
+                    main_color = 'grey60'
+                    normal_color = 'grey60'
                     reverse_color = 'white'
                     index = -1
                 case '9': #1001
-                    main_color = 'blue'
+                    main_color = 'grey60'
                     normal_color = 'white'
-                    reverse_color = 'blue'
+                    reverse_color = 'grey60'
                     index = -2
 
             self.canvas.itemconfig(self.ids[-2], fill=reverse_color)
