@@ -1275,7 +1275,7 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
         print(f'>>> {dataFrame.dataSent}')
         serialComm.write(dataFrame.dataSent)
 
-    if dataFrame.ack < 7:
+    if dataFrame.ack < 5:
         print(f'Retry [{dataFrame.ack}]')
         dataFrame.dataReceived = serialComm.read()
         if dataFrame.dataReceived is not None:           
