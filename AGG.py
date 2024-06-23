@@ -165,7 +165,7 @@ class NetElement:
                 color = 'grey60'
 
         self.canvas.itemconfig(self.id, fill=color)
-        self.canvas.after(1, self.update_draw)
+        self.canvas.after(500, self.update_draw)
 
 class BufferStop:
     def __init__(self, canvas, x, y, direction ,color='black'):
@@ -241,7 +241,7 @@ class LevelCrossing:
 
         for id in self.ids:
             self.canvas.itemconfig(id, fill=color)
-        self.canvas.after(1, self.update_draw)
+        self.canvas.after(500, self.update_draw)
         
     def on_net_element_click(self, event):
 
@@ -380,7 +380,7 @@ class Signals:
         self.canvas.itemconfig(self.semaphore[-2], fill=color)
         self.canvas.itemconfig(self.semaphore[-1], fill=color,outline=color)
 
-        self.canvas.after(1, self.update_draw)
+        self.canvas.after(500, self.update_draw)
 
     def on_signal_click(self, event):
         self.pressed = not self.pressed
@@ -410,7 +410,8 @@ class Signals:
                         print(f'Signal {self.name} is released [{routes}]')
                         
                         for route in routes:
-                            self.dataFrame.data['Routes'][route] = 0
+                            self.dataFrame.data['Routes'][route] = 9
+                        self.dataFrame.newEvent = True
                         self.dataFrame.update_text()
                         color = 'grey'
                         self.canvas.itemconfig(self.id, fill=color)
@@ -582,7 +583,7 @@ class Switch:
             self.canvas.itemconfig(self.ids[0], fill=main_color)
             self.canvas.tag_raise(self.ids[index])
             
-        self.canvas.after(1, self.update_draw)
+        self.canvas.after(500, self.update_draw)
             
     def switch_position(self, event):
         if self.type == 'simple':
@@ -1253,8 +1254,6 @@ def split_data(input_string, n_netElements, n_routes, n_signals, n_levelCrossing
     start_doubleSwitch = start_switches + n_switches
     start_scissorCrossings = start_doubleSwitch + n_doubleSwitch
 
-    #TO FIX!
-
     # Split the data string into the variables
     data_tracks = data_string[:start_routes]
     data_routes = data_string[start_routes:start_signals]
@@ -1275,49 +1274,53 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
         print(f'>>> {dataFrame.dataSent}')
         serialComm.write(dataFrame.dataSent)
 
-    if dataFrame.ack < 5:
-        print(f'Retry [{dataFrame.ack}]')
-        dataFrame.dataReceived = serialComm.read()
-        if dataFrame.dataReceived is not None:           
-            print(f"<<< {dataFrame.dataReceived}")
-            
-            data_tracks, data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataFrame.dataReceived, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
-
-            if n_netElements > 0 :
-                for tck_index,tck_key in enumerate(dataFrame.data['Occupation'].keys()):
-                    dataFrame.data['Occupation'][tck_key] = str(data_tracks[tck_index])
-
-            if n_routes > 0 :
-                for rt_index,rt_key in enumerate(dataFrame.data['Routes'].keys()):
-                    dataFrame.data['Routes'][rt_key] = str(data_routes[rt_index])
-
-            if n_signals > 0 :
-                for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
-                    dataFrame.data['Signal'][sig_key] = str(data_signals[sig_index])
-
-            if n_levelCrossings > 0 :
-                for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
-                    dataFrame.data['LevelCrossing'][lc_key] = str(data_levelCrossings[lc_index])
-
-            if n_switches > 0:
-                for sw_index,sw_key in enumerate(dataFrame.data['Switch'].keys()):
-                    dataFrame.data['Switch'][sw_key] = str(data_switches[sw_index])
-            
-            dataFrame.update_text()
+    #if dataFrame.ack < 5:
+    #print(f'Retry [{dataFrame.ack}]')
+    dataFrame.dataReceived = serialComm.read()
+    if dataFrame.dataReceived is not None:           
+        print(f"<<< {dataFrame.dataReceived}")
         
-        print(f'>   {dataFrame.dataSent[1:-1]}\n<   {dataFrame.dataReceived}')
+        data_tracks, data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataFrame.dataReceived, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+
+        if n_netElements > 0 :
+            for tck_index,tck_key in enumerate(dataFrame.data['Occupation'].keys()):
+                dataFrame.data['Occupation'][tck_key] = str(data_tracks[tck_index])
+
+        if n_routes > 0 :
+            for rt_index,rt_key in enumerate(dataFrame.data['Routes'].keys()):
+                dataFrame.data['Routes'][rt_key] = str(data_routes[rt_index])
+
+        if n_signals > 0 :
+            for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
+                dataFrame.data['Signal'][sig_key] = str(data_signals[sig_index])
+
+        if n_levelCrossings > 0 :
+            for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
+                dataFrame.data['LevelCrossing'][lc_key] = str(data_levelCrossings[lc_index])
+
+        if n_switches > 0:
+            for sw_index,sw_key in enumerate(dataFrame.data['Switch'].keys()):
+                dataFrame.data['Switch'][sw_key] = str(data_switches[sw_index])
+        
+        dataFrame.update_text()
+    
+        #print(f'>   {dataFrame.dataSent[1:-1]}\n<   {dataFrame.dataReceived}')
         if dataFrame.dataSent[1:-1] != dataFrame.dataReceived:
             print(f'X>> {dataFrame.dataSent[1:-1]}')
             #print(f'Y>> {dataFrame.dataSent[1:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:-1]}')
             
             #serialComm.write(dataFrame.dataSent[:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:])
+            print(f'\n>   {dataFrame.dataSent[1:-1]}')
             serialComm.write(dataFrame.dataSent)
         else:
             dataFrame.ack = dataFrame.ack + 1
-            print(f'Done [{dataFrame.ack}]\n')
-    
+            #print(f'Done [{dataFrame.ack}]\n')
+    else:
+        print(f'\n>   {dataFrame.dataSent[1:-1]}')
+        serialComm.write(dataFrame.dataSent)
+
     # Schedule the function to be called again after 100ms
-    window.after(50, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
@@ -1358,9 +1361,7 @@ def AGG(RML,routes,parameters,test = False):
     switches = {}
     signals = {}
 
-  
     dataFrame = DataFrame(window,canvas, netElements, routes, width, height)
-  
 
     for netElement in netElements:
         lines_plot = draw_lines(canvas, dataFrame,netElements, switches_pos, width, height,netElement,switches,signal_routes,signals)
@@ -1406,7 +1407,7 @@ def AGG(RML,routes,parameters,test = False):
 
     dataFrame.newEvent = True
     # Schedule the function to be called after 100ms
-    window.after(50, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
     # Main loop for tkinter
     window.mainloop()
