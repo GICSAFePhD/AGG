@@ -118,7 +118,7 @@ class DataFrame:
       
 class NetElement:
     def __init__(self, canvas,dataFrame,x1, y1, x2, y2, net_elements, net_element_key, color='black'):
-        self.id = canvas.create_line(x1, y1, x2, y2, fill=color,width=4)
+        self.id = canvas.create_line(x1, y1, x2, y2, fill=color,width=5)
         self.pressed = False
         self.canvas = canvas
         self.net_elements = net_elements
@@ -165,7 +165,7 @@ class NetElement:
                 color = 'grey60'
 
         self.canvas.itemconfig(self.id, fill=color)
-        self.canvas.after(500, self.update_draw)
+        self.canvas.after(300, self.update_draw)
 
 class BufferStop:
     def __init__(self, canvas, x, y, direction ,color='black'):
@@ -1251,7 +1251,7 @@ def bind_events(canvas, lines):
         canvas.scale("all", event.x, event.y, factor, factor)
 
     canvas.bind("<ButtonPress-1>", on_button_press)
-    canvas.bind("<B1-Motion>", on_drag)
+    canvas.bind("<Shift-B1-Motion>", on_drag)
     canvas.bind("<MouseWheel>", on_zoom)
 
 def split_data(input_string, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
