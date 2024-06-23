@@ -551,35 +551,47 @@ class Switch:
                     main_color = 'black'
                     normal_color = 'black'
                     reverse_color = 'white'
+                    normal_width = 5
+                    reverse_width = 6
                     index = -1
                 case '1': #0001
                     main_color = 'black'
                     normal_color = 'white'
                     reverse_color = 'black'
+                    normal_width = 6
+                    reverse_width = 5
                     index = -2
                 case '4': #0100
                     main_color = 'grey70'
                     normal_color = 'grey70'
                     reverse_color = 'white'
+                    normal_width = 5
+                    reverse_width = 6
                     index = -1
                 case '5': #0101
                     main_color = 'grey70'
                     normal_color = 'white'
                     reverse_color = 'grey70'
+                    normal_width = 6
+                    reverse_width = 5
                     index = -2
                 case '8': #1000
                     main_color = 'grey60'
                     normal_color = 'grey60'
                     reverse_color = 'white'
+                    normal_width = 5
+                    reverse_width = 6
                     index = -1
                 case '9': #1001
                     main_color = 'grey60'
                     normal_color = 'white'
                     reverse_color = 'grey60'
+                    normal_width = 6
+                    reverse_width = 5
                     index = -2
 
-            self.canvas.itemconfig(self.ids[-2], fill=reverse_color)
-            self.canvas.itemconfig(self.ids[-1], fill=normal_color)
+            self.canvas.itemconfig(self.ids[-2], fill=reverse_color, width = reverse_width)
+            self.canvas.itemconfig(self.ids[-1], fill=normal_color, width = normal_width)
             self.canvas.itemconfig(self.ids[0], fill=main_color)
             self.canvas.tag_raise(self.ids[index])
             
