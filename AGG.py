@@ -85,18 +85,20 @@ class DataFrame:
                 for levelCrossing in network[ne]['Switch']:
                     self.data['Switch'][levelCrossing] = 0
 
+
         self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
         self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
         self.signalFrame = ''.join([str(value) for value in self.data['Signal'].values()])
+    
         if 'LevelCrossing' in self.data:
             self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
         else:
             self.levelCrossingFrame = None
-            
+
         self.switchFrame = ''.join([str(value) for value in self.data['Switch'].values()])
 
         self.frame =  f'{self.occupationFrame}|{self.routeFrame}|{self.signalFrame}|{self.levelCrossingFrame}|{self.switchFrame}'
-
+     
         self.update_text()
 
     def __str__(self):
@@ -105,11 +107,22 @@ class DataFrame:
         return f'{self.frame}'
 
     def update_text(self):
-        self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
-        self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
-        self.signalFrame = ''.join([str(value) for value in self.data['Signal'].values()])
-        self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
-        self.switchFrame = ''.join([str(value) for value in self.data['Switch'].values()])
+        self.occupationFrame = ''
+        self.routeFrame = ''
+        self.signalFrame = ''
+        self.levelCrossingFrame = ''
+        self.switchFrame = ''
+
+        if 'Occupation' in self.data:
+            self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
+        if 'Routes' in self.data:
+            self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
+        if 'Signal' in self.data:
+            self.signalFrame = ''.join([str(value) for value in self.data['Signal'].values()])
+        if 'LevelCrossing' in self.data:
+            self.levelCrossingFrame = ''.join([str(value) for value in self.data['LevelCrossing'].values()])
+        if 'Switch' in self.data:
+            self.switchFrame = ''.join([str(value) for value in self.data['Switch'].values()])
 
         self.frame =  f'<{self.occupationFrame}|{self.routeFrame}|{self.signalFrame}|{self.levelCrossingFrame}|{self.switchFrame}>'
         self.dataSent = f'<{self.occupationFrame}{self.routeFrame}{self.signalFrame}{self.levelCrossingFrame}{self.switchFrame}>'
@@ -1129,7 +1142,6 @@ def create_switches_pos(netElements):
 def draw_lines(canvas, dataFrame,network, switches_pos,width, height, netElement,switches,signal_routes,signals):
     def convert_coordinates(x, y):
         return x + width // 2, height // 2 - y
-
     net_elements = {}
     levelCrossings = {}
     
@@ -1324,15 +1336,15 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
             #serialComm.write(dataFrame.dataSent[:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:])
             print(f'\n>   {dataFrame.dataSent[1:-1]}')
             serialComm.write(dataFrame.dataSent)
-        else:
-            dataFrame.ack = dataFrame.ack + 1
+        #else:
+            #dataFrame.ack = dataFrame.ack + 1
             #print(f'Done [{dataFrame.ack}]\n')
     else:
         print(f'\n>   {dataFrame.dataSent[1:-1]}')
         serialComm.write(dataFrame.dataSent)
 
     # Schedule the function to be called again after 100ms
-    window.after(500, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(1000, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
