@@ -82,9 +82,32 @@ class DataFrame:
             if 'Switch' in network[ne]:
                 if 'Switch' not in self.data:
                     self.data['Switch'] = {}
-                for levelCrossing in network[ne]['Switch']:
-                    self.data['Switch'][levelCrossing] = 0
+                for switch in network[ne]['Switch']:
+                    self.data['Switch'][switch] = 0
+            if 'Switch_B' in network[ne]:
+                if 'Switch' not in self.data:
+                    self.data['Switch'] = {}
+                for switch in network[ne]['Switch_B']:
+                    self.data['Switch'][switch] = 0
+            if 'Switch_C' in network[ne]:
+                if 'Switch' not in self.data:
+                    self.data['Switch'] = {}
+                for switch in network[ne]['Switch_C']:
+                    self.data['Switch'][switch] = 0
 
+        for ne in network:
+            if 'Switch_X' in network[ne]:
+                if 'Switch' not in self.data:
+                    self.data['Switch'] = {}
+                for switch in network[ne]['Switch_X']:
+                    self.data['Switch'][switch] = 0
+
+        for ne in network:
+            if 'Crossing' in network[ne]:
+                if 'Switch' not in self.data:
+                    self.data['Switch'] = {}
+                for switch in network[ne]['Crossing']:
+                    self.data['Switch'][switch] = 0
 
         self.occupationFrame = ''.join([str(value) for value in self.data['Occupation'].values()])
         self.routeFrame = ''.join([str(value) for value in self.data['Routes'].values()])
@@ -509,9 +532,18 @@ class Switch:
             self.normalR = self.convert_coordinates(same_y[1][0],same_y[1][1])
 
             # The other points are the branch points
+            #print(f'{different_y[0][0]},{different_y[0][1]} {different_y[1][0]},{different_y[1][1]}')
+
             self.branchL = self.convert_coordinates(different_y[0][0],different_y[0][1])
             self.branchR = self.convert_coordinates(different_y[1][0],different_y[1][1])
-
+            '''
+            if different_y[0][1] < different_y[1][1]:
+                self.branchL = self.convert_coordinates(different_y[0][0],different_y[0][1])
+                self.branchR = self.convert_coordinates(different_y[1][0],different_y[1][1])
+            else:
+                self.branchR = self.convert_coordinates(different_y[0][0],different_y[0][1])
+                self.branchL = self.convert_coordinates(different_y[1][0],different_y[1][1])
+            '''
             #print(f'{switch_key} | {switches_pos[switch_key]} | {self.core}')
 
             self.ids = [
@@ -607,21 +639,222 @@ class Switch:
             self.canvas.itemconfig(self.ids[-1], fill=normal_color, width = normal_width)
             self.canvas.itemconfig(self.ids[0], fill=main_color)
             self.canvas.tag_raise(self.ids[index])
-            
+
+        if self.type == 'double':
+    
+            match str(self.dataFrame.data['Switch'][self.switch_key]):
+                case '0': #0000 NN
+                    color_4 = 'black'
+                    color_3 = 'black'
+                    color_2 = 'white'
+                    color_1 = 'white'
+                    width_4 = 5
+                    width_3 = 5
+                    width_2 = 6
+                    width_1 = 6
+                    index_A = -4
+                    index_B = -3
+                case '1': #0001 RR
+                    color_4 = 'white'
+                    color_3 = 'white'
+                    color_2 = 'black'
+                    color_1 = 'black'
+                    width_4 = 6
+                    width_3 = 6
+                    width_2 = 5
+                    width_1 = 5
+                    index_A = -2
+                    index_B = -1
+                case '2': #0010 RN
+                    color_4 = 'white'
+                    color_3 = 'black'
+                    color_2 = 'black'
+                    color_1 = 'white'
+                    width_4 = 6
+                    width_3 = 5
+                    width_2 = 5
+                    width_1 = 6
+                    index_A = -3
+                    index_B = -2                
+                case '3': #0011 NR
+                    color_4 = 'black'
+                    color_3 = 'white'
+                    color_2 = 'white'
+                    color_1 = 'black'
+                    width_4 = 5
+                    width_3 = 6
+                    width_2 = 6
+                    width_1 = 5
+                    index_A = -4
+                    index_B = -1
+                case '4': #0100
+                    color_4 = 'grey70'
+                    color_3 = 'grey70'
+                    color_2 = 'white'
+                    color_1 = 'white'
+                    width_4 = 5
+                    width_3 = 5
+                    width_2 = 6
+                    width_1 = 6
+                    index_A = -4
+                    index_B = -3
+                case '5': #0101
+                    color_4 = 'white'
+                    color_3 = 'white'
+                    color_2 = 'grey70'
+                    color_1 = 'grey70'
+                    width_4 = 6
+                    width_3 = 6
+                    width_2 = 5
+                    width_1 = 5
+                    index_A = -2
+                    index_B = -1
+                case '6': #0110
+                    color_4 = 'white'
+                    color_3 = 'grey70'
+                    color_2 = 'grey70'
+                    color_1 = 'white'
+                    width_4 = 6
+                    width_3 = 5
+                    width_2 = 5
+                    width_1 = 6
+                    index_A = -3
+                    index_B = -2 
+                case '7': #0111
+                    color_4 = 'grey70'
+                    color_3 = 'white'
+                    color_2 = 'white'
+                    color_1 = 'grey70'
+                    width_4 = 5
+                    width_3 = 6
+                    width_2 = 6
+                    width_1 = 5
+                    index_A = -4
+                    index_B = -1
+                case '8': #1000
+                    color_4 = 'grey60'
+                    color_3 = 'grey60'
+                    color_2 = 'white'
+                    color_1 = 'white'
+                    width_4 = 5
+                    width_3 = 5
+                    width_2 = 6
+                    width_1 = 6
+                    index_A = -4
+                    index_B = -3
+                case '9': #1001
+                    color_4 = 'white'
+                    color_3 = 'white'
+                    color_2 = 'grey60'
+                    color_1 = 'grey60'
+                    width_4 = 6
+                    width_3 = 6
+                    width_2 = 5
+                    width_1 = 5
+                    index_A = -2
+                    index_B = -1
+                case 'A': #1010
+                    color_4 = 'white'
+                    color_3 = 'grey60'
+                    color_2 = 'grey60'
+                    color_1 = 'white'
+                    width_4 = 6
+                    width_3 = 5
+                    width_2 = 5
+                    width_1 = 6
+                    index_A = -3
+                    index_B = -2 
+                case 'B': #1011
+                    color_4 = 'grey60'
+                    color_3 = 'white'
+                    color_2 = 'white'
+                    color_1 = 'grey60'
+                    width_4 = 5
+                    width_3 = 6
+                    width_2 = 6
+                    width_1 = 5
+                    index_A = -4
+                    index_B = -1
+
+            self.canvas.itemconfig(self.ids[-4], fill = color_4, width = width_4)
+            self.canvas.itemconfig(self.ids[-3], fill = color_3, width = width_3)
+            self.canvas.itemconfig(self.ids[-2], fill = color_2, width = width_2)
+            self.canvas.itemconfig(self.ids[-1], fill = color_1, width = width_1)
+            self.canvas.tag_raise(self.ids[index_A])
+            self.canvas.tag_raise(self.ids[index_B])
+
+        if self.type == 'scissor':
+
+            match str(self.dataFrame.data['Switch'][self.switch_key]):
+                case '0': #0000
+                    normal_color = 'white'
+                    reverse_color = 'black'
+                    normal_width = 6
+                    reverse_width = 5
+                    index = -1
+                case '1': #0001
+                    normal_color = 'black'
+                    reverse_color = 'white'
+                    normal_width = 5
+                    reverse_width = 6
+                    index = -2                    
+                case '4': #0100
+                    normal_color = 'white'
+                    reverse_color = 'grey70'
+                    normal_width = 6
+                    reverse_width = 5
+                    index = -1
+                case '5': #0101
+                    normal_color = 'grey70'
+                    reverse_color = 'white'
+                    normal_width = 5
+                    reverse_width = 6
+                    index = -2
+                case '8': #1000
+                    normal_color = 'white'
+                    reverse_color = 'grey60'
+                    normal_width = 6
+                    reverse_width = 5
+                    index = -1
+                case '9': #1001
+                    normal_color = 'grey60'
+                    reverse_color = 'white'
+                    normal_width = 5
+                    reverse_width = 6
+                    index = -2
+
+            self.canvas.itemconfig(self.ids[-2], fill=reverse_color, width = reverse_width)
+            self.canvas.itemconfig(self.ids[-1], fill=normal_color, width = normal_width)
+            self.canvas.tag_raise(self.ids[index])
+        
         self.canvas.after(500, self.update_draw)
             
     def switch_position(self, event):
+    
+        value = int(self.dataFrame.data['Switch'][self.switch_key], 16)
         if self.type == 'simple':
+            value ^= 1
+        if self.type == 'double':
+            value = (value + 1) % 4
+        if self.type == 'scissor':
+            value ^= 1
+        self.dataFrame.data['Switch'][self.switch_key] = format(value, 'x')
 
+        self.dataFrame.newEvent = True
+        self.dataFrame.update_text()
+        self.update_draw()    
+
+        '''   
+        if self.type == 'double':
+    
             value = int(self.dataFrame.data['Switch'][self.switch_key], 16)
             value ^= 1
             self.dataFrame.data['Switch'][self.switch_key] = format(value, 'x')
 
             self.dataFrame.newEvent = True
             self.dataFrame.update_text()
-            self.update_draw()    
-                
-        if self.type == 'double':
+            self.update_draw()   
+
             self.state = self.state + 1 if self.state < 3 else 0
 
             match self.state:   # RR NN RN NR 
@@ -676,7 +909,7 @@ class Switch:
                     self.canvas.tag_raise(self.ids[-2])
                 case _:
                     print(f'Switch {self.switch_key} invalid') 
-
+        '''   
         self.raise_to_top()
 
     def convert_coordinates(self,x, y):
@@ -1115,7 +1348,7 @@ def create_switches_pos(netElements):
                 #print(f'{switch_x} -|- {core} -|- {ne} {line_key} {line} | {point_on_line}')
                 
                 switches_pos[switch_x].append(point_on_line)
-                print(f'{switch_x} {switches_pos[switch_x]}')
+                #print(f'{switch_x} {switches_pos[switch_x]}')
 
     for ne in netElements:
         if 'Crossing' in netElements[ne]:
@@ -1283,11 +1516,12 @@ def split_data(input_string, n_netElements, n_routes, n_signals, n_levelCrossing
     data_routes = data_string[start_routes:start_signals]
     data_signals = data_string[start_signals:start_levelCrossings]
     data_levelCrossings = data_string[start_levelCrossings:start_switches]
-    data_switches = data_string[start_switches:start_doubleSwitch]
-    data_doubleSwitch = data_string[start_doubleSwitch:start_scissorCrossings]
-    data_scissorCrossings = data_string[start_scissorCrossings:]
+    data_switches = data_string[start_switches:]
+    #data_switches = data_string[start_switches:start_doubleSwitch]
+    #data_doubleSwitch = data_string[start_doubleSwitch:start_scissorCrossings]
+    #data_scissorCrossings = data_string[start_scissorCrossings:]
 
-    return data_tracks, data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings
+    return data_tracks, data_routes, data_signals, data_levelCrossings, data_switches#, data_doubleSwitch, data_scissorCrossings
 
 def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
     # Read data from the serial port
@@ -1304,7 +1538,7 @@ def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, 
     if dataFrame.dataReceived is not None:           
         print(f"<<< {dataFrame.dataReceived}")
         
-        data_tracks, data_routes, data_signals, data_levelCrossings, data_switches, data_doubleSwitch, data_scissorCrossings = split_data(dataFrame.dataReceived, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+        data_tracks, data_routes, data_signals, data_levelCrossings, data_switches = split_data(dataFrame.dataReceived, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
         if n_netElements > 0 :
             for tck_index,tck_key in enumerate(dataFrame.data['Occupation'].keys()):
@@ -1435,4 +1669,3 @@ def AGG(RML,routes,parameters,test = False):
 
     # Main loop for tkinter
     window.mainloop()
-        
