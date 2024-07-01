@@ -536,6 +536,7 @@ class Switch:
 
             self.branchL = self.convert_coordinates(different_y[0][0],different_y[0][1])
             self.branchR = self.convert_coordinates(different_y[1][0],different_y[1][1])
+            
             '''
             if different_y[0][1] < different_y[1][1]:
                 self.branchL = self.convert_coordinates(different_y[0][0],different_y[0][1])
@@ -791,37 +792,37 @@ class Switch:
                     reverse_color = 'black'
                     normal_width = 6
                     reverse_width = 5
-                    index = -1
+                    index = -2
                 case '1': #0001
                     normal_color = 'black'
                     reverse_color = 'white'
                     normal_width = 5
                     reverse_width = 6
-                    index = -2                    
+                    index = -1                    
                 case '4': #0100
                     normal_color = 'white'
                     reverse_color = 'grey70'
                     normal_width = 6
                     reverse_width = 5
-                    index = -1
+                    index = -2
                 case '5': #0101
                     normal_color = 'grey70'
                     reverse_color = 'white'
                     normal_width = 5
                     reverse_width = 6
-                    index = -2
+                    index = -1
                 case '8': #1000
                     normal_color = 'white'
                     reverse_color = 'grey60'
                     normal_width = 6
                     reverse_width = 5
-                    index = -1
+                    index = -2
                 case '9': #1001
                     normal_color = 'grey60'
                     reverse_color = 'white'
                     normal_width = 5
                     reverse_width = 6
-                    index = -2
+                    index = -1
 
             self.canvas.itemconfig(self.ids[-2], fill=reverse_color, width = reverse_width)
             self.canvas.itemconfig(self.ids[-1], fill=normal_color, width = normal_width)
@@ -1526,11 +1527,13 @@ def split_data(input_string, n_netElements, n_routes, n_signals, n_levelCrossing
 def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
     # Read data from the serial port
 
+    '''
     if dataFrame.newEvent:
         dataFrame.newEvent = False
         dataFrame.ack = 0
         print(f'>>> {dataFrame.dataSent}')
         serialComm.write(dataFrame.dataSent)
+    '''
 
     #if dataFrame.ack < 5:
     #print(f'Retry [{dataFrame.ack}]')
