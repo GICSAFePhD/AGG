@@ -3,18 +3,22 @@ import re
 import math
 import serial
 import time
+import queue
+
+# Queue to store GUI dataframes
+gui_queue = queue.Queue()
 
 class SerialComm:
-    def __init__(self, port, baudrate=19200):
+    def __init__(self, port, baudrate = 19200):
         self.ser = serial.Serial(port)
         self.ser.port = port
         self.ser.baudrate = baudrate
         self.ser.bytesize = serial.EIGHTBITS    # number of bits per bytes # SEVENBITS
         self.ser.parity = serial.PARITY_NONE    # set parity check: no parity # PARITY_ODD
         self.ser.stopbits = serial.STOPBITS_ONE # number of stop bits # STOPBITS_TWO
-        #self.ser.timeout = None                 # block read
+        #self.ser.timeout = None                # block read
         self.ser.timeout = 1                    # non-block read
-        #self.ser.timeout = 2                    # timeout block read
+        #self.ser.timeout = 2                   # timeout block read
         self.ser.xonxoff = False                # disable software flow control
         self.ser.rtscts = False                 # disable hardware (RTS/CTS) flow control
         self.ser.dsrdtr = False                 # disable hardware (DSR/DTR) flow control
@@ -38,7 +42,7 @@ class SerialComm:
 
     def write(self, message):
         self.ser.write(message.encode())
-        time.sleep(0.1)
+        #time.sleep(0.1)
 
     def close(self):
         self.ser.close()
@@ -55,6 +59,7 @@ class DataFrame:
 
         self.dataSent = None
         self.dataReceived = None
+        self.dataGUI = None
 
         for ne in network:
             if 'Occupation' not in self.data:
@@ -201,7 +206,7 @@ class NetElement:
                 color = 'grey60'
 
         self.canvas.itemconfig(self.id, fill=color)
-        self.canvas.after(300, self.update_draw)
+        self.canvas.after(10, self.update_draw)
 
 class BufferStop:
     def __init__(self, canvas, x, y, direction ,color='black'):
@@ -277,7 +282,7 @@ class LevelCrossing:
 
         for id in self.ids:
             self.canvas.itemconfig(id, fill=color)
-        self.canvas.after(500, self.update_draw)
+        self.canvas.after(10, self.update_draw)
         
     def on_net_element_click(self, event):
 
@@ -416,7 +421,7 @@ class Signals:
         self.canvas.itemconfig(self.semaphore[-2], fill=color)
         self.canvas.itemconfig(self.semaphore[-1], fill=color,outline=color)
 
-        self.canvas.after(500, self.update_draw)
+        self.canvas.after(10, self.update_draw)
 
     def on_signal_click(self, event):
         self.pressed = not self.pressed
@@ -828,7 +833,7 @@ class Switch:
             self.canvas.itemconfig(self.ids[-1], fill=normal_color, width = normal_width)
             self.canvas.tag_raise(self.ids[index])
         
-        self.canvas.after(500, self.update_draw)
+        self.canvas.after(10, self.update_draw)
             
     def switch_position(self, event):
     
@@ -845,72 +850,6 @@ class Switch:
         self.dataFrame.update_text()
         self.update_draw()    
 
-        '''   
-        if self.type == 'double':
-    
-            value = int(self.dataFrame.data['Switch'][self.switch_key], 16)
-            value ^= 1
-            self.dataFrame.data['Switch'][self.switch_key] = format(value, 'x')
-
-            self.dataFrame.newEvent = True
-            self.dataFrame.update_text()
-            self.update_draw()   
-
-            self.state = self.state + 1 if self.state < 3 else 0
-
-            match self.state:   # RR NN RN NR 
-                case 0:
-                    print(f'Switch {self.switch_key} reverse-reverse')
-                    event.widget.itemconfig(self.ids[-4], fill='white')
-                    event.widget.itemconfig(self.ids[-3], fill='white')
-                    event.widget.itemconfig(self.ids[-2], fill='black')
-                    event.widget.itemconfig(self.ids[-1], fill='black')
-                    self.canvas.tag_raise(self.ids[-2])
-                    self.canvas.tag_raise(self.ids[-1])
-                case 1:
-                    print(f'Switch {self.switch_key} normal-normal')
-                    event.widget.itemconfig(self.ids[-4], fill='black')
-                    event.widget.itemconfig(self.ids[-3], fill='black')
-                    event.widget.itemconfig(self.ids[-2], fill='white')
-                    event.widget.itemconfig(self.ids[-1], fill='white')
-                    self.canvas.tag_raise(self.ids[-4])
-                    self.canvas.tag_raise(self.ids[-3])
-                case 2:
-                    print(f'Switch {self.switch_key} reverse-normal')
-                    event.widget.itemconfig(self.ids[-4], fill='white')
-                    event.widget.itemconfig(self.ids[-3], fill='black')
-                    event.widget.itemconfig(self.ids[-2], fill='black')
-                    event.widget.itemconfig(self.ids[-1], fill='white')
-                    self.canvas.tag_raise(self.ids[-3])
-                    self.canvas.tag_raise(self.ids[-2])
-                case 3:
-                    print(f'Switch {self.switch_key} normal-reverse')
-                    event.widget.itemconfig(self.ids[-4], fill='black')
-                    event.widget.itemconfig(self.ids[-3], fill='white')
-                    event.widget.itemconfig(self.ids[-2], fill='white')
-                    event.widget.itemconfig(self.ids[-1], fill='black')
-                    self.canvas.tag_raise(self.ids[-4])
-                    self.canvas.tag_raise(self.ids[-1])
-                case _:
-                    print(f'Switch {self.switch_key} invalid') 
-
-        if self.type == 'scissor':
-            self.state = 1 if self.state == 0 else 0
-
-            match self.state:   # RR NN
-                case 0:
-                    print(f'Switch {self.switch_key} X-reverse')
-                    event.widget.itemconfig(self.ids[-2], fill='white')
-                    event.widget.itemconfig(self.ids[-1], fill='black')
-                    self.canvas.tag_raise(self.ids[-1])
-                case 1:
-                    print(f'Switch {self.switch_key} X-normal')
-                    event.widget.itemconfig(self.ids[-2], fill='black')
-                    event.widget.itemconfig(self.ids[-1], fill='white')
-                    self.canvas.tag_raise(self.ids[-2])
-                case _:
-                    print(f'Switch {self.switch_key} invalid') 
-        '''   
         self.raise_to_top()
 
     def convert_coordinates(self,x, y):
@@ -921,7 +860,7 @@ class Switch:
         if current_items != self.previous_items:
             self.raise_to_top()
         self.previous_items = current_items
-        self.canvas.after(100, self.check_for_changes)  # Check for changes every 100 milliseconds
+        self.canvas.after(10, self.check_for_changes)  # Check for changes every 100 milliseconds
 
     def raise_to_top(self):
         for id in self.ids:
@@ -1524,64 +1463,70 @@ def split_data(input_string, n_netElements, n_routes, n_signals, n_levelCrossing
 
     return data_tracks, data_routes, data_signals, data_levelCrossings, data_switches#, data_doubleSwitch, data_scissorCrossings
 
+def merge_data_from_gui(dataFrame, new_data):
+    # Example: Merging new data from the GUI into dataFrame
+    # This is a simple example, you might need a more complex merging logic
+    #dataFrame.data.update(new_data)
+    return
+
+def update_dataFrame(dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings,data_tracks, data_routes, data_signals, data_levelCrossings, data_switches):
+
+    if n_netElements > 0:
+        for tck_index, tck_key in enumerate(dataFrame.data['Occupation'].keys()):
+            dataFrame.data['Occupation'][tck_key] = str(data_tracks[tck_index])
+
+    if n_routes > 0:
+        for rt_index, rt_key in enumerate(dataFrame.data['Routes'].keys()):
+            dataFrame.data['Routes'][rt_key] = str(data_routes[rt_index])
+
+    if n_signals > 0:
+        for sig_index, sig_key in enumerate(dataFrame.data['Signal'].keys()):
+            dataFrame.data['Signal'][sig_key] = str(data_signals[sig_index])
+
+    if n_levelCrossings > 0:
+        for lc_index, lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
+            dataFrame.data['LevelCrossing'][lc_key] = str(data_levelCrossings[lc_index])
+
+    if n_switches > 0:
+        for sw_index, sw_key in enumerate(dataFrame.data['Switch'].keys()):
+            dataFrame.data['Switch'][sw_key] = str(data_switches[sw_index])
+
+ # Function to handle GUI updates, enqueueing them
+
+def handle_gui_update(new_data):
+    gui_queue.put(new_data)
+
 def read_and_write_data(window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings):
-    # Read data from the serial port
 
-    '''
-    if dataFrame.newEvent:
-        dataFrame.newEvent = False
-        dataFrame.ack = 0
-        print(f'>>> {dataFrame.dataSent}')
-        serialComm.write(dataFrame.dataSent)
-    '''
+    # Check if there's an update from the GUI
+    if not gui_queue.empty():
+        new_data = gui_queue.get()
+        # Update dataFrame with new GUI data
+        merge_data_from_gui(dataFrame, new_data)
 
-    #if dataFrame.ack < 5:
-    #print(f'Retry [{dataFrame.ack}]')
     dataFrame.dataReceived = serialComm.read()
     if dataFrame.dataReceived is not None:           
         print(f"<<< {dataFrame.dataReceived}")
         
+         # Assuming split_data function processes received data
         data_tracks, data_routes, data_signals, data_levelCrossings, data_switches = split_data(dataFrame.dataReceived, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
-        if n_netElements > 0 :
-            for tck_index,tck_key in enumerate(dataFrame.data['Occupation'].keys()):
-                dataFrame.data['Occupation'][tck_key] = str(data_tracks[tck_index])
-
-        if n_routes > 0 :
-            for rt_index,rt_key in enumerate(dataFrame.data['Routes'].keys()):
-                dataFrame.data['Routes'][rt_key] = str(data_routes[rt_index])
-
-        if n_signals > 0 :
-            for sig_index,sig_key in enumerate(dataFrame.data['Signal'].keys()):
-                dataFrame.data['Signal'][sig_key] = str(data_signals[sig_index])
-
-        if n_levelCrossings > 0 :
-            for lc_index,lc_key in enumerate(dataFrame.data['LevelCrossing'].keys()):
-                dataFrame.data['LevelCrossing'][lc_key] = str(data_levelCrossings[lc_index])
-
-        if n_switches > 0:
-            for sw_index,sw_key in enumerate(dataFrame.data['Switch'].keys()):
-                dataFrame.data['Switch'][sw_key] = str(data_switches[sw_index])
-        
+         # Update dataFrame with received data
+        update_dataFrame(dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings,data_tracks, data_routes, data_signals, data_levelCrossings, data_switches)
+                
         dataFrame.update_text()
     
         #print(f'>   {dataFrame.dataSent[1:-1]}\n<   {dataFrame.dataReceived}')
         if dataFrame.dataSent[1:-1] != dataFrame.dataReceived:
-            print(f'X>> {dataFrame.dataSent[1:-1]}')
-            #print(f'Y>> {dataFrame.dataSent[1:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:-1]}')
-            
-            #serialComm.write(dataFrame.dataSent[:n_netElements+1]+'0'*n_routes+dataFrame.dataSent[n_netElements+n_routes+1:])
-            print(f'\n>   {dataFrame.dataSent[1:-1]}')
+            print(f'X>> {dataFrame.dataSent[1:-1]}')            
             serialComm.write(dataFrame.dataSent)
-        #else:
-            #dataFrame.ack = dataFrame.ack + 1
-            #print(f'Done [{dataFrame.ack}]\n')
+
     else:
         print(f'\n>   {dataFrame.dataSent[1:-1]}')
         serialComm.write(dataFrame.dataSent)
 
     # Schedule the function to be called again after 100ms
-    window.after(1000, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
+    window.after(100, read_and_write_data, window, serialComm, dataFrame, n_netElements, n_routes, n_signals, n_levelCrossings, n_switches, n_doubleSwitch, n_scissorCrossings)
 
 def AGG(RML,routes,parameters,test = False):
     print("#"*20+" Starting Automatic GUI Generator "+"#"*20)
